@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L4 vs L7 Load Balancing</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #06101a;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+  letter-spacing: 3px;
+  margin-bottom: 6px;
+  background: linear-gradient(90deg, #00ffe0, #ffffff, #ff6b35);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  text-align: center;
+  color: rgba(255,255,255,0.3);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  margin-bottom: 24px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.tab {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 30px;
+  border: 2px solid;
+  background: transparent;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.25s;
+  border-radius: 4px;
+}
+.tab-l4 { border-color: #00ffe0; color: #00ffe0; }
+.tab-l4.active { background: #00ffe0; color: #000; }
+.tab-l7 { border-color: #ff6b35; color: #ff6b35; }
+.tab-l7.active { background: #ff6b35; color: #000; }
+
+.scene { display: none; }
+.scene.active { display: block; }
+
+.card {
+  background: #0b1a2a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* DIAGRAM */
+.diagram {
+  padding: 30px 24px;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  background: #060f1a;
+}
+
+.diagram::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,200,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none;
+}
+
+/* packet overlay */
+.track {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* NODE STYLES */
+.node-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.node-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border: 2px solid;
+  text-align: center;
+  line-height: 1.5;
+  background: #0a1929;
+  border-color: #7dd3fc;
+  color: #7dd3fc;
+}
+
+.node-label {
+  font-size: 0.58rem;
+  letter-spacing: 1px;
+  opacity: 0.45;
+  text-transform: uppercase;
+}
+
+/* LB BOX */
+.lb-box {
+  width: 116px;
+  height: 80px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
+  border: 2px solid;
+  text-align: center;
+  line-height: 1.7;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+
+.lb-l4 { background: #041c2c; border-color: #00ffe0; color: #00ffe0; }
+.lb-l7 { background: #1a0a00; border-color: #ff6b35; color: #ff6b35; }
+
+.lb-scan {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  opacity: 0.35;
+  animation: scan 2s linear infinite;
+}
+.lb-l4 .lb-scan { background: #00ffe0; }
+.lb-l7 .lb-scan { background: #ff6b35; animation-duration: 1.5s; }
+
+@keyframes scan {
+  0%   { top: 0; }
+  100% { top: 100%; }
+}
+
+/* SERVER BOXES */
+.servers-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 2;
+}
+
+.srv-box {
+  width: 86px;
+  height: 58px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  letter-spacing: 1px;
+  border: 2px solid;
+  text-align: center;
+  line-height: 1.5;
+  transition: box-shadow 0.25s;
+}
+
+/* DASHED CONNECTOR LINES */
+.connectors {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* INFO */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+.info-cell {
+  padding: 16px 18px;
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+.info-cell:last-child { border-right: none; }
+.info-cell h3 {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.info-cell p { font-size: 0.72rem; line-height: 1.6; color: rgba(255,255,255,0.55); }
+
+/* LOG */
+.log {
+  background: #020a12;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 10px 16px;
+  height: 88px;
+  overflow-y: auto;
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.4);
+}
+.log-entry { margin-bottom: 2px; }
+.ts { color: #334; margin-right: 6px; }
+
+/* CONTROLS */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: #0b1520;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  flex-wrap: wrap;
+}
+.controls label { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+.btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  padding: 6px 16px;
+  border: 1px solid;
+  background: transparent;
+  cursor: pointer;
+  letter-spacing: 1px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.btn-teal { border-color: #00ffe0; color: #00ffe0; }
+.btn-teal:hover { background: #00ffe0; color: #000; }
+.btn-orange { border-color: #ff6b35; color: #ff6b35; }
+.btn-orange:hover { background: #ff6b35; color: #000; }
+
+/* Floating labels over packets */
+.pkt-label {
+  position: absolute;
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.8);
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  top: -14px;
+}
+
+/* Inspect flash */
+.inspect-badge {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  background: rgba(10,5,0,0.9);
+  border: 1px solid #ff6b35;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 0.6rem;
+  color: #ff6b35;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<h1>⚡ L4 vs L7 LOAD BALANCING ⚡</h1>
+<p class="subtitle">ANIMATED EXPLAINER · TRANSPORT vs APPLICATION LAYER</p>
+
+<div class="tabs">
+  <button class="tab tab-l4 active" onclick="showScene('l4')">◈ Layer 4</button>
+  <button class="tab tab-l7" onclick="showScene('l7')">◈ Layer 7</button>
+</div>
+
+<!-- ════════ L4 SCENE ════════ -->
+<div class="scene active" id="scene-l4">
+<div class="card">
+  <div class="diagram" id="diag-l4">
+    <svg class="connectors" id="svg-l4"></svg>
+    <div class="track" id="track-l4"></div>
+
+    <div class="node-wrap" id="l4-client-wrap">
+      <div class="node-circle" id="l4-client">💻<br>CLIENT</div>
+      <div class="node-label">Browser</div>
+    </div>
+
+    <div class="node-wrap">
+      <div class="lb-box lb-l4" id="l4-lb">
+        <div class="lb-scan"></div>
+        <span style="font-size:0.9rem;font-weight:bold">L4 LB</span>
+        <span style="font-size:0.58rem;opacity:0.7">IP + PORT</span>
+        <span style="font-size:0.53rem;opacity:0.45">ROUND-ROBIN</span>
+      </div>
+      <div class="node-label" style="color:#00ffe0">Transport Layer</div>
+    </div>
+
+    <div class="servers-col" id="l4-servers">
+      <div class="srv-box" id="l4-s0" style="border-color:#4ade80;background:#0d1f0d;color:#4ade80">🖥 SRV 1<br><span style="opacity:0.55">:3000</span></div>
+      <div class="srv-box" id="l4-s1" style="border-color:#4ade80;background:#0d1f0d;color:#4ade80">🖥 SRV 2<br><span style="opacity:0.55">:5000</span></div>
+      <div class="srv-box" id="l4-s2" style="border-color:#4ade80;background:#0d1f0d;color:#4ade80">🖥 SRV 3<br><span style="opacity:0.55">:8080</span></div>
+    </div>
+
+    <div class="inspect-badge" id="l4-noPeek">🚫 NO CONTENT PEEK</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <h3 style="color:#00ffe0">🔵 What it sees</h3>
+      <p>Source IP, destination IP, and TCP/UDP port only. The packet envelope is never opened.</p>
+    </div>
+    <div class="info-cell">
+      <h3 style="color:#00ffe0">⚡ How it routes</h3>
+      <p>Round-robin or IP hash. Picks server at TCP handshake time. Same session → same server.</p>
+    </div>
+    <div class="info-cell">
+      <h3 style="color:#00ffe0">✓ Best for</h3>
+      <p>Databases, game servers, DNS, video — raw throughput where content doesn't matter.</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label>SPEED</label>
+    <input type="range" id="spd-l4" min="300" max="1800" value="900" step="100">
+    <button class="btn btn-teal" id="burst-l4">▶ SEND BURST</button>
+    <span style="font-size:0.63rem;color:rgba(255,255,255,0.25);margin-left:auto">
+      🟡 TCP packet &nbsp;·&nbsp; 🟢 backend server
+    </span>
+  </div>
+  <div class="log" id="log-l4"></div>
+</div>
+</div>
+
+<!-- ════════ L7 SCENE ════════ -->
+<div class="scene" id="scene-l7">
+<div class="card">
+  <div class="diagram" id="diag-l7">
+    <svg class="connectors" id="svg-l7"></svg>
+    <div class="track" id="track-l7"></div>
+
+    <div class="node-wrap">
+      <div class="node-circle" id="l7-client">🌐<br>BROWSER</div>
+      <div class="node-label">HTTP Client</div>
+    </div>
+
+    <div class="node-wrap">
+      <div class="lb-box lb-l7" id="l7-lb">
+        <div class="lb-scan"></div>
+        <span style="font-size:0.9rem;font-weight:bold">L7 LB</span>
+        <span style="font-size:0.58rem;opacity:0.7">READS HEADERS</span>
+        <span style="font-size:0.52rem;opacity:0.45">URL · COOKIES · HOST</span>
+      </div>
+      <div class="node-label" style="color:#ff6b35">Application Layer</div>
+    </div>
+
+    <div class="servers-col">
+      <div class="srv-box" id="l7-api" style="border-color:#a78bfa;background:#120d1f;color:#a78bfa">⚙️ API<br><span style="opacity:0.6">/api/*</span></div>
+      <div class="srv-box" id="l7-cdn" style="border-color:#fb923c;background:#1a0f00;color:#fb923c">🖼 CDN<br><span style="opacity:0.6">/images/*</span></div>
+      <div class="srv-box" id="l7-pay" style="border-color:#f43f5e;background:#1a0010;color:#f43f5e">💳 PAYMENT<br><span style="opacity:0.6">/checkout</span></div>
+    </div>
+
+    <div class="inspect-badge" id="l7-inspect">GET /api/data HTTP/1.1</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <h3 style="color:#ff6b35">🟠 What it sees</h3>
+      <p>Full HTTP request: URL path, headers, cookies, host name. Terminates the TCP connection itself.</p>
+    </div>
+    <div class="info-cell">
+      <h3 style="color:#ff6b35">🧠 How it routes</h3>
+      <p>/api → API servers, /images → CDN, /checkout → payment. Routes by content, not just IP.</p>
+    </div>
+    <div class="info-cell">
+      <h3 style="color:#ff6b35">✓ Best for</h3>
+      <p>Microservices, A/B testing, SSL termination, canary deploys, auth, rate limiting.</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label>SPEED</label>
+    <input type="range" id="spd-l7" min="400" max="2000" value="1100" step="100">
+    <button class="btn btn-orange" id="burst-l7">▶ SEND BURST</button>
+    <span style="font-size:0.63rem;color:rgba(255,255,255,0.25);margin-left:auto">
+      🟣 /api &nbsp;·&nbsp; 🟠 /images &nbsp;·&nbsp; 🔴 /checkout
+    </span>
+  </div>
+  <div class="log" id="log-l7"></div>
+</div>
+</div>
+
+<script>
+// ── Scene switcher ──────────────────────────────────────────────
+function showScene(id) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('scene-' + id).classList.add('active');
+  document.querySelector('.tab-' + id).classList.add('active');
+}
+
+// ── Log helper ──────────────────────────────────────────────────
+function addLog(id, html) {
+  const el = document.getElementById('log-' + id);
+  const d = document.createElement('div');
+  d.className = 'log-entry';
+  const t = new Date();
+  const ts = [t.getHours(), t.getMinutes(), t.getSeconds()]
+    .map(n => n.toString().padStart(2,'0')).join(':');
+  d.innerHTML = `<span class="ts">${ts}</span>${html}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Center of element relative to container ─────────────────────
+function centerOf(el, container) {
+  const er = el.getBoundingClientRect();
+  const cr = container.getBoundingClientRect();
+  return {
+    x: er.left - cr.left + er.width / 2,
+    y: er.top  - cr.top  + er.height / 2
+  };
+}
+
+// ── Flash element ───────────────────────────────────────────────
+function flashEl(el, color) {
+  el.style.boxShadow = `0 0 22px 4px ${color}`;
+  setTimeout(() => { el.style.boxShadow = ''; }, 450);
+}
+
+// ── Draw SVG dashed wires ───────────────────────────────────────
+function drawWires(svgId, diagId, lbId, nodeIds, lineColor) {
+  const svg  = document.getElementById(svgId);
+  const diag = document.getElementById(diagId);
+  const lb   = document.getElementById(lbId);
+
+  function makeLine(x1,y1,x2,y2) {
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1',x1); ln.setAttribute('y1',y1);
+    ln.setAttribute('x2',x2); ln.setAttribute('y2',y2);
+    ln.setAttribute('stroke', lineColor);
+    ln.setAttribute('stroke-width','1');
+    ln.setAttribute('stroke-dasharray','5,5');
+    ln.setAttribute('stroke-opacity','0.2');
+    svg.appendChild(ln);
+  }
+
+  function redraw() {
+    const dr = diag.getBoundingClientRect();
+    svg.setAttribute('width', dr.width);
+    svg.setAttribute('height', dr.height);
+    svg.setAttribute('viewBox', `0 0 ${dr.width} ${dr.height}`);
+    svg.innerHTML = '';
+    const lbC = centerOf(lb, diag);
+    nodeIds.forEach(nid => {
+      const nC = centerOf(document.getElementById(nid), diag);
+      makeLine(lbC.x, lbC.y, nC.x, nC.y);
+    });
+  }
+
+  setTimeout(redraw, 100);
+  window.addEventListener('resize', redraw);
+}
+
+// ── Generic packet mover ─────────────────────────────────────────
+function movePacket(track, diag, x1, y1, x2, y2, color, duration, onDone) {
+  const pkt = document.createElement('div');
+  pkt.style.cssText = `
+    position:absolute;
+    width:14px; height:14px;
+    border-radius:50%;
+    background:${color};
+    box-shadow:0 0 10px 2px ${color};
+    left:${x1-7}px; top:${y1-7}px;
+    pointer-events:none;
+    z-index:25;
+    transition:opacity 0.3s;
+  `;
+  track.appendChild(pkt);
+
+  let start = null;
+  function step(ts) {
+    if (!start) start = ts;
+    const p = Math.min((ts - start) / duration, 1);
+    // ease in-out
+    const e = p < 0.5 ? 2*p*p : -1+(4-2*p)*p;
+    pkt.style.left = (x1 + (x2 - x1) * e - 7) + 'px';
+    pkt.style.top  = (y1 + (y2 - y1) * e - 7) + 'px';
+    if (p < 1) {
+      requestAnimationFrame(step);
+    } else {
+      onDone && onDone();
+      pkt.style.opacity = '0';
+      setTimeout(() => pkt.remove(), 350);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// ════════════════════════════════════════════════════════════════
+// L4 ENGINE
+// ════════════════════════════════════════════════════════════════
+(function() {
+  drawWires('svg-l4','diag-l4','l4-lb',['l4-s0','l4-s1','l4-s2'],'#00ffe0');
+
+  const diag   = document.getElementById('diag-l4');
+  const track  = document.getElementById('track-l4');
+  const lbEl   = document.getElementById('l4-lb');
+  const clientEl = document.getElementById('l4-client');
+  const noPeek = document.getElementById('l4-noPeek');
+  const srvIds = ['l4-s0','l4-s1','l4-s2'];
+  const ports  = [80, 443, 22, 3306, 27017];
+  let rr = 0, timerId = null;
+
+  function speed() { return parseInt(document.getElementById('spd-l4').value); }
+
+  function fire() {
+    const srvIdx = rr++ % 3;
+    const srvEl  = document.getElementById(srvIds[srvIdx]);
+    const port   = ports[Math.floor(Math.random() * ports.length)];
+    const cPos   = centerOf(clientEl, diag);
+    const lbPos  = centerOf(lbEl, diag);
+    const sPos   = centerOf(srvEl, diag);
+    const spd    = speed();
+
+    // client → LB
+    movePacket(track, diag, cPos.x, cPos.y, lbPos.x, lbPos.y, '#ffe135', spd * 0.38, () => {
+      flashEl(lbEl, '#00ffe0');
+      noPeek.style.opacity = '1';
+      addLog('l4',
+        `<span style="color:#ffe135">PKT</span> ` +
+        `src_port:<span style="color:#00ffe0">${port}</span> → LB → ` +
+        `<span style="color:#4ade80">SRV${srvIdx+1}</span> ` +
+        `<span style="color:#334">[no inspection]</span>`
+      );
+      setTimeout(() => {
+        noPeek.style.opacity = '0';
+        // LB → server
+        movePacket(track, diag, lbPos.x, lbPos.y, sPos.x, sPos.y, '#ffe135', spd * 0.52, () => {
+          flashEl(srvEl, '#4ade80');
+        });
+      }, 200);
+    });
+  }
+
+  function restart() {
+    clearInterval(timerId);
+    timerId = setInterval(fire, speed() * 0.75);
+  }
+
+  document.getElementById('spd-l4').addEventListener('input', restart);
+  document.getElementById('burst-l4').addEventListener('click', () => {
+    for (let i = 0; i < 6; i++) setTimeout(fire, i * 130);
+  });
+
+  restart();
+})();
+
+// ════════════════════════════════════════════════════════════════
+// L7 ENGINE
+// ════════════════════════════════════════════════════════════════
+(function() {
+  drawWires('svg-l7','diag-l7','l7-lb',['l7-api','l7-cdn','l7-pay'],'#ff6b35');
+
+  const diag     = document.getElementById('diag-l7');
+  const track    = document.getElementById('track-l7');
+  const lbEl     = document.getElementById('l7-lb');
+  const clientEl = document.getElementById('l7-client');
+  const inspBadge= document.getElementById('l7-inspect');
+
+  const routes = [
+    { path:'/api/data',    id:'l7-api', color:'#a78bfa', label:'API',     logStr:'<span style="color:#a78bfa">/api/data</span> → <span style="color:#4ade80">API cluster</span>' },
+    { path:'/images/logo', id:'l7-cdn', color:'#fb923c', label:'CDN',     logStr:'<span style="color:#fb923c">/images/logo</span> → <span style="color:#4ade80">CDN cluster</span>' },
+    { path:'/checkout',    id:'l7-pay', color:'#f43f5e', label:'PAYMENT', logStr:'<span style="color:#f43f5e">/checkout</span> → <span style="color:#4ade80">PAYMENT cluster</span>' },
+  ];
+  let timerId = null;
+
+  function speed() { return parseInt(document.getElementById('spd-l7').value); }
+
+  function fire() {
+    const route  = routes[Math.floor(Math.random() * routes.length)];
+    const srvEl  = document.getElementById(route.id);
+    const cPos   = centerOf(clientEl, diag);
+    const lbPos  = centerOf(lbEl, diag);
+    const sPos   = centerOf(srvEl, diag);
+    const spd    = speed();
+
+    // client → LB
+    movePacket(track, diag, cPos.x, cPos.y, lbPos.x, lbPos.y, route.color, spd * 0.36, () => {
+      flashEl(lbEl, route.color);
+      inspBadge.textContent = `GET ${route.path} HTTP/1.1`;
+      inspBadge.style.opacity = '1';
+      addLog('l7',
+        `<span style="color:#ff6b35">HTTP</span> GET ${route.logStr}`
+      );
+      setTimeout(() => {
+        inspBadge.style.opacity = '0';
+        // LB → service (slight arc via midpoint)
+        const midX = (lbPos.x + sPos.x) / 2;
+        const midY = (lbPos.y + sPos.y) / 2 - 28;
+
+        // Two-leg arc illusion
+        movePacket(track, diag, lbPos.x, lbPos.y, midX, midY, route.color, spd * 0.25, () => {
+          movePacket(track, diag, midX, midY, sPos.x, sPos.y, route.color, spd * 0.3, () => {
+            flashEl(srvEl, route.color);
+          });
+        });
+      }, 260);
+    });
+  }
+
+  function restart() {
+    clearInterval(timerId);
+    timerId = setInterval(fire, speed() * 0.78);
+  }
+
+  document.getElementById('spd-l7').addEventListener('input', restart);
+  document.getElementById('burst-l7').addEventListener('click', () => {
+    for (let i = 0; i < 5; i++) setTimeout(fire, i * 150);
+  });
+
+  restart();
+})();
+</script>
+</body>
+</html>
