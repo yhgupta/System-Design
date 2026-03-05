@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSR vs SSR — Visual Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --csr: #FF6B35;
+    --ssr: #00C2A8;
+    --bg: #0A0A0F;
+    --surface: #12121A;
+    --surface2: #1C1C28;
+    --border: rgba(255,255,255,0.08);
+    --text: #F0EEF8;
+    --muted: #6B6880;
+    --font: 'Syne', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 80px 20px 40px;
+    position: relative;
+  }
+
+  .hero-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 span.csr { color: var(--csr); }
+  .hero h1 span.ssr { color: var(--ssr); }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+    font-family: var(--mono);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 32px 20px 0;
+  }
+
+  .tab-btn {
+    padding: 10px 28px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .tab-btn.active-csr { background: var(--csr); color: #fff; border-color: var(--csr); }
+  .tab-btn.active-ssr { background: var(--ssr); color: #000; border-color: var(--ssr); }
+
+  /* Content sections */
+  .section { display: none; padding: 40px 20px 80px; max-width: 1000px; margin: 0 auto; }
+  .section.visible { display: block; animation: fadeUp 0.4s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Flow diagram */
+  .flow-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+
+  .flow-step {
+    flex: 1;
+    padding: 24px 16px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    border-right: 1px solid var(--border);
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  .flow-step.animate { opacity: 1; transform: translateX(0); }
+  .flow-step:last-child { border-right: none; }
+
+  .step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .csr .step-icon { background: rgba(255,107,53,0.15); color: var(--csr); border: 1px solid rgba(255,107,53,0.3); }
+  .ssr .step-icon { background: rgba(0,194,168,0.15); color: var(--ssr); border: 1px solid rgba(0,194,168,0.3); }
+
+  .step-label {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .step-desc {
+    font-size: 0.82rem;
+    color: #aaa;
+    line-height: 1.4;
+  }
+
+  /* Arrow between steps */
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 2px;
+    color: var(--muted);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  /* Timeline */
+  .timeline-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 40px;
+  }
+
+  .timeline-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .timeline-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .tl-name {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    width: 80px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .tl-bar-wrap {
+    flex: 1;
+    height: 28px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .tl-segment {
+    height: 100%;
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(.16,1,.3,1);
+  }
+
+  /* CSR timeline segments */
+  .csr-html { background: rgba(255,107,53,0.25); color: var(--csr); left: 0; width: 0; }
+  .csr-js   { background: rgba(255,107,53,0.5);  color: var(--csr); left: 12%; width: 0; }
+  .csr-data { background: rgba(255,107,53,0.75); color: var(--csr); left: 38%; width: 0; }
+  .csr-render { background: var(--csr); color: #fff; left: 60%; width: 0; }
+
+  /* SSR timeline segments */
+  .ssr-req  { background: rgba(0,194,168,0.25); color: var(--ssr); left: 0; width: 0; }
+  .ssr-render { background: rgba(0,194,168,0.6); color: var(--ssr); left: 8%; width: 0; }
+  .ssr-send { background: var(--ssr); color: #000; left: 35%; width: 0; }
+  .ssr-hydrate { background: rgba(0,194,168,0.5); color: var(--ssr); left: 60%; width: 0; }
+
+  .tl-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin-top: 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* Comparison table */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+
+  .cg-cell {
+    background: var(--surface);
+    padding: 16px 20px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .cg-header {
+    background: var(--surface2);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 20px;
+    font-weight: 500;
+  }
+
+  .cg-header.csr-h { color: var(--csr); }
+  .cg-header.ssr-h { color: var(--ssr); }
+
+  .cg-label { color: var(--muted); font-size: 0.78rem; font-family: var(--mono); }
+  .cg-good  { color: #6AE981; }
+  .cg-bad   { color: #FF6B6B; }
+  .cg-mid   { color: #FFD166; }
+
+  /* Use case cards */
+  .use-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .use-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+
+  .use-card h3 {
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .use-card h3 .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .use-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .use-card li {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: #aaa;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .use-card li::before { content: '→'; flex-shrink: 0; }
+  .use-card.csr-card li::before { color: var(--csr); }
+  .use-card.ssr-card li::before { color: var(--ssr); }
+
+  /* Hybrid section */
+  .hybrid-box {
+    background: linear-gradient(135deg, rgba(255,107,53,0.07), rgba(0,194,168,0.07));
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  .hybrid-box h3 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .hybrid-box h3 span { color: var(--csr); }
+  .hybrid-box h3 span.s { color: var(--ssr); }
+
+  .hybrid-box p {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    max-width: 560px;
+    margin: 0 auto 20px;
+  }
+
+  .hybrid-tags {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .h-tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* Section for combined view */
+  #compare .compare-intro {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+
+  .intro-card {
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid var(--border);
+  }
+
+  .intro-card.csr-card { background: rgba(255,107,53,0.05); border-color: rgba(255,107,53,0.2); }
+  .intro-card.ssr-card { background: rgba(0,194,168,0.05); border-color: rgba(0,194,168,0.2); }
+
+  .intro-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+  .intro-card.csr-card h3 { color: var(--csr); }
+  .intro-card.ssr-card h3 { color: var(--ssr); }
+
+  .intro-card p { font-family: var(--mono); font-size: 0.8rem; color: #aaa; line-height: 1.6; }
+
+  @media (max-width: 640px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); align-self: center; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .use-cards, #compare .compare-intro { grid-template-columns: 1fr; }
+    .flow-step { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-label">// rendering strategies explained</div>
+  <h1><span class="csr">CSR</span> vs <span class="ssr">SSR</span></h1>
+  <p>Client-Side Rendering vs Server-Side Rendering — when to use each, how they work, and why it matters.</p>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active-csr" onclick="showTab('csr', this)">Client-Side (CSR)</button>
+  <button class="tab-btn" onclick="showTab('ssr', this)">Server-Side (SSR)</button>
+  <button class="tab-btn" onclick="showTab('compare', this)">Compare Both</button>
+</div>
+
+<!-- CSR TAB -->
+<div class="section visible" id="csr">
+  <p class="flow-title">// how client-side rendering works</p>
+
+  <div class="flow csr" id="csr-flow">
+    <div class="flow-step">
+      <div class="step-icon">🌐</div>
+      <div class="step-label">1. Request</div>
+      <div class="step-desc">Browser requests the page from server</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">📄</div>
+      <div class="step-label">2. Bare HTML</div>
+      <div class="step-desc">Server returns a near-empty HTML shell with a &lt;div id="root"&gt;</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">📦</div>
+      <div class="step-label">3. JS Bundle</div>
+      <div class="step-desc">Browser downloads and parses the JavaScript bundle</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">🔌</div>
+      <div class="step-label">4. Fetch Data</div>
+      <div class="step-desc">JS calls APIs to fetch actual content and data</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">✨</div>
+      <div class="step-label">5. Render</div>
+      <div class="step-desc">JS renders the full UI in the browser</div>
+    </div>
+  </div>
+
+  <div class="timeline-wrap">
+    <div class="timeline-label">// loading timeline (user experience)</div>
+    <div class="timeline-row">
+      <div class="tl-name">HTML loads</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment csr-html" id="csr-html">HTML shell</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">JS parses</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment csr-js" id="csr-js">JS bundle</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">Data fetch</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment csr-data" id="csr-data">API calls</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">Visible ✓</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment csr-render" id="csr-render">Page visible!</div>
+      </div>
+    </div>
+    <div class="tl-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,107,53,0.25)"></div>Blank / Loading</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,107,53,0.5)"></div>Processing</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--csr)"></div>Visible to user</div>
+    </div>
+  </div>
+
+  <div class="use-cards">
+    <div class="use-card csr-card">
+      <h3><div class="dot" style="background:var(--csr)"></div>Best for</h3>
+      <ul>
+        <li>Dashboards & admin panels</li>
+        <li>Apps behind a login screen</li>
+        <li>Highly interactive UIs (real-time, drag-drop)</li>
+        <li>Single-page apps (SPAs)</li>
+        <li>When SEO doesn't matter</li>
+      </ul>
+    </div>
+    <div class="use-card csr-card">
+      <h3><div class="dot" style="background:#FF6B6B"></div>Avoid when</h3>
+      <ul>
+        <li>You need good SEO</li>
+        <li>Users have slow devices or connections</li>
+        <li>Fast first-paint is critical</li>
+        <li>Social media link previews matter</li>
+        <li>Public-facing marketing pages</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hybrid-box">
+    <h3>Popular <span>CSR</span> Frameworks</h3>
+    <p>These tools handle the complexity of building client-rendered apps with routing, state management, and build optimizations baked in.</p>
+    <div class="hybrid-tags">
+      <div class="h-tag">React (Vite/CRA)</div>
+      <div class="h-tag">Vue.js</div>
+      <div class="h-tag">Angular</div>
+      <div class="h-tag">Svelte</div>
+      <div class="h-tag">Ember</div>
+    </div>
+  </div>
+</div>
+
+<!-- SSR TAB -->
+<div class="section" id="ssr">
+  <p class="flow-title">// how server-side rendering works</p>
+
+  <div class="flow ssr" id="ssr-flow">
+    <div class="flow-step">
+      <div class="step-icon">🌐</div>
+      <div class="step-label">1. Request</div>
+      <div class="step-desc">Browser requests the page from server</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">⚙️</div>
+      <div class="step-label">2. Server Work</div>
+      <div class="step-desc">Server fetches data & renders the full HTML page</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">📄</div>
+      <div class="step-label">3. Full HTML</div>
+      <div class="step-desc">Complete, content-filled HTML is sent to browser</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">👁️</div>
+      <div class="step-label">4. Visible</div>
+      <div class="step-desc">User sees content immediately — no blank screen</div>
+    </div>
+    <div class="flow-step">
+      <div class="step-icon">⚡</div>
+      <div class="step-label">5. Hydrate</div>
+      <div class="step-desc">JS loads and "hydrates" — attaches interactivity</div>
+    </div>
+  </div>
+
+  <div class="timeline-wrap">
+    <div class="timeline-label">// loading timeline (user experience)</div>
+    <div class="timeline-row">
+      <div class="tl-name">Request</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment ssr-req" id="ssr-req">server processing</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">Server renders</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment ssr-render" id="ssr-render">HTML generation</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">Visible ✓</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment ssr-send" id="ssr-send">Full page visible!</div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="tl-name">Interactive ✓</div>
+      <div class="tl-bar-wrap">
+        <div class="tl-segment ssr-hydrate" id="ssr-hydrate">JS hydrates</div>
+      </div>
+    </div>
+    <div class="tl-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(0,194,168,0.3)"></div>Server working</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--ssr)"></div>Visible to user</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(0,194,168,0.5)"></div>Becoming interactive</div>
+    </div>
+  </div>
+
+  <div class="use-cards">
+    <div class="use-card ssr-card">
+      <h3><div class="dot" style="background:var(--ssr)"></div>Best for</h3>
+      <ul>
+        <li>Marketing & landing pages</li>
+        <li>E-commerce product pages</li>
+        <li>Blogs, news, content sites</li>
+        <li>Pages that need good SEO</li>
+        <li>Public-facing content</li>
+      </ul>
+    </div>
+    <div class="use-card ssr-card">
+      <h3><div class="dot" style="background:#FF6B6B"></div>Avoid when</h3>
+      <ul>
+        <li>Page is highly interactive / stateful</li>
+        <li>Real-time updates are needed</li>
+        <li>Server resources are limited</li>
+        <li>Content is behind auth (waste of server render)</li>
+        <li>Complex app-like behavior needed</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hybrid-box">
+    <h3>Popular <span class="s">SSR</span> Frameworks</h3>
+    <p>Modern SSR frameworks give you both server rendering AND client-side interactivity, with smart hydration strategies to minimise JS sent to the browser.</p>
+    <div class="hybrid-tags">
+      <div class="h-tag">Next.js</div>
+      <div class="h-tag">Nuxt.js</div>
+      <div class="h-tag">SvelteKit</div>
+      <div class="h-tag">Remix</div>
+      <div class="h-tag">Astro</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE TAB -->
+<div class="section" id="compare">
+  <div class="compare-intro">
+    <div class="intro-card csr-card">
+      <h3>Client-Side Rendering</h3>
+      <p>The browser does the heavy lifting. Server sends a blank shell + JS bundle. The app lives and breathes in the browser.</p>
+    </div>
+    <div class="intro-card ssr-card">
+      <h3>Server-Side Rendering</h3>
+      <p>The server does the heavy lifting. Every page request triggers a full render server-side. Browser gets ready-to-display HTML.</p>
+    </div>
+  </div>
+
+  <p class="flow-title" style="margin-bottom:16px">// side-by-side comparison</p>
+  <div class="compare-grid">
+    <div class="cg-header">Metric</div>
+    <div class="cg-header csr-h">CSR</div>
+    <div class="cg-header ssr-h">SSR</div>
+
+    <div class="cg-cell cg-label">Initial Load</div>
+    <div class="cg-cell cg-bad">Slower — blank screen while JS loads</div>
+    <div class="cg-cell cg-good">Faster — HTML arrives ready to display</div>
+
+    <div class="cg-cell cg-label">Subsequent Nav</div>
+    <div class="cg-cell cg-good">Instant — only data is fetched</div>
+    <div class="cg-cell cg-mid">Slower — new request per page</div>
+
+    <div class="cg-cell cg-label">SEO</div>
+    <div class="cg-cell cg-bad">Poor — crawlers may miss dynamic content</div>
+    <div class="cg-cell cg-good">Excellent — full HTML for crawlers</div>
+
+    <div class="cg-cell cg-label">Server Load</div>
+    <div class="cg-cell cg-good">Low — server just serves static files</div>
+    <div class="cg-cell cg-bad">High — renders on every request</div>
+
+    <div class="cg-cell cg-label">Interactivity</div>
+    <div class="cg-cell cg-good">Instant after load — full JS control</div>
+    <div class="cg-cell cg-mid">Needs hydration step</div>
+
+    <div class="cg-cell cg-label">Time to Interactive</div>
+    <div class="cg-cell cg-bad">Late — must wait for JS + data</div>
+    <div class="cg-cell cg-good">Early — content visible immediately</div>
+
+    <div class="cg-cell cg-label">Caching</div>
+    <div class="cg-cell cg-good">Easy — static bundle cached by CDN</div>
+    <div class="cg-cell cg-mid">Possible but more complex</div>
+
+    <div class="cg-cell cg-label">Hosting Cost</div>
+    <div class="cg-cell cg-good">Cheap — static hosting only</div>
+    <div class="cg-cell cg-bad">Higher — needs a running server</div>
+  </div>
+
+  <div class="hybrid-box">
+    <h3>The Modern Answer: <span>Hybrid</span> + <span class="s">SSG</span></h3>
+    <p>Frameworks like Next.js let you mix strategies per-page. Statically generate marketing pages at build time (SSG), server-render dynamic content (SSR), and client-render interactive dashboards (CSR) — all in one app.</p>
+    <div class="hybrid-tags">
+      <div class="h-tag">SSG — Static Site Generation</div>
+      <div class="h-tag">ISR — Incremental Static Regen</div>
+      <div class="h-tag">Partial Hydration</div>
+      <div class="h-tag">Islands Architecture</div>
+      <div class="h-tag">Streaming SSR</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let activeTab = 'csr';
+
+  function showTab(tab, btn) {
+    // Hide all sections
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+    // Show clicked
+    document.getElementById(tab).classList.add('visible');
+    // Update buttons
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active-csr', 'active-ssr');
+    });
+    if (tab === 'csr') btn.classList.add('active-csr');
+    else if (tab === 'ssr') btn.classList.add('active-ssr');
+    else btn.classList.add('active-csr');
+
+    activeTab = tab;
+
+    // Trigger animations
+    setTimeout(() => {
+      animateFlow(tab);
+      animateTimeline(tab);
+    }, 50);
+  }
+
+  function animateFlow(tab) {
+    const steps = document.querySelectorAll(`#${tab}-flow .flow-step`);
+    steps.forEach((s, i) => {
+      s.classList.remove('animate');
+      setTimeout(() => s.classList.add('animate'), i * 120);
+    });
+  }
+
+  function animateTimeline(tab) {
+    if (tab === 'csr') {
+      animateSeg('csr-html', '12%');
+      setTimeout(() => animateSeg('csr-js',  '26%'), 300);
+      setTimeout(() => animateSeg('csr-data','22%'), 600);
+      setTimeout(() => animateSeg('csr-render','38%'), 900);
+    } else if (tab === 'ssr') {
+      animateSeg('ssr-req',  '8%');
+      setTimeout(() => animateSeg('ssr-render','27%'), 200);
+      setTimeout(() => animateSeg('ssr-send',  '25%'), 500);
+      setTimeout(() => animateSeg('ssr-hydrate','36%'), 750);
+    }
+  }
+
+  function animateSeg(id, w) {
+    const el = document.getElementById(id);
+    if (el) el.style.width = w;
+  }
+
+  // Kick off initial animations
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      animateFlow('csr');
+      animateTimeline('csr');
+    }, 200);
+  });
+</script>
+</body>
+</html>
