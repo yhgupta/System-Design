@@ -339,10 +339,10 @@ function cardHTML(name, sets) {
       <td><span class="set-num">${i+1}</span></td>
       <td><input class="num-inp" type="number" min="0" step="0.5" placeholder="—"
         value="${s.weight || ''}"
-        oninput="updSet('${esc(name)}',${i},'weight',this.value)"></td>
+        oninput="updSet('${esc(name)}',${i},'weight',this.value)" onblur="updSet('${esc(name)}',${i},'weight',this.value)"></td>
       <td><input class="num-inp" type="number" min="0" step="1" placeholder="—"
         value="${s.reps || ''}"
-        oninput="updSet('${esc(name)}',${i},'reps',this.value)"></td>
+        oninput="updSet('${esc(name)}',${i},'reps',this.value)" onblur="updSet('${esc(name)}',${i},'reps',this.value)"></td>
       <td>
         <button class="check-btn ${s.done ? 'done' : ''}" onclick="toggleDone('${esc(name)}',${i})">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -403,6 +403,10 @@ function updSet(name, i, field, val) {
       else nm.insertAdjacentHTML('afterend', `<span class="ex-vol">${v.toLocaleString()} kg vol</span>`);
     } else if (ve) ve.remove();
   });
+  // Live-refresh progress charts if that tab is open
+  if (document.getElementById('pane-progress')?.classList.contains('on')) {
+    drawCharts();
+  }
 }
 
 function toggleDone(name, i) {
@@ -949,16 +953,28 @@ function buildPRSheet(wb) {
 // ─────────────────────────────────────────
 //  PROGRESS TAB
 // ─────────────────────────────────────────
-let chartWeight = null;
-let chartReps   = null;
-let chartVol    = null;
-let progMetric  = 'weight'; // 'weight' | 'reps' | 'volume'
-let progEx      = '';
+// Store chart instances keyed by canvas id so we can destroy precisely
+const _charts = {};
 
+function destroyChart(id) {
+  if (_charts[id]) { try { _charts[id].destroy(); } catch(e){} delete _charts[id]; }
+}
+
+function makeChart(id, cfg) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  _charts[id] = new Chart(ctx, cfg);
+}
+
+let progMetric = 'weight';
+let progEx     = '';
+
+// Called every time we switch to Progress tab
 function renderProgress() {
   const el = document.getElementById('progress-content');
 
-  // Collect all exercise names that have any data
+  // Build unique exercise list from DB
   const allEx = [];
   Object.values(DB).forEach(day => {
     Object.keys(day).forEach(n => { if (!allEx.includes(n)) allEx.push(n); });
@@ -970,78 +986,79 @@ function renderProgress() {
     return;
   }
 
-  // Keep selected exercise valid
   if (!progEx || !allEx.includes(progEx)) progEx = allEx[0];
 
-  const options = allEx.map(n => `<option value="${n}" ${n===progEx?'selected':''}>${n}</option>`).join('');
+  const options = allEx.map(n => `<option value="${n}"${n===progEx?' selected':''}>${n}</option>`).join('');
 
+  // Build scaffold HTML — canvases are stable, we only replace their data
   el.innerHTML = `
     <div class="progress-shell">
       <div class="ex-selector-row">
         <label>Exercise</label>
         <select class="ex-select" id="prog-ex-sel" onchange="progEx=this.value;drawCharts()">${options}</select>
         <div class="metric-toggle">
-          <button class="metric-btn ${progMetric==='weight'?'on':''}" onclick="progMetric='weight';updMetricBtns();drawCharts()">Weight</button>
-          <button class="metric-btn ${progMetric==='reps'?'on':''}"   onclick="progMetric='reps';updMetricBtns();drawCharts()">Reps</button>
-          <button class="metric-btn ${progMetric==='volume'?'on':''}" onclick="progMetric='volume';updMetricBtns();drawCharts()">Volume</button>
+          <button class="metric-btn${progMetric==='weight'?' on':''}" onclick="setMetric('weight')">Weight</button>
+          <button class="metric-btn${progMetric==='reps'?' on':''}"   onclick="setMetric('reps')">Reps</button>
+          <button class="metric-btn${progMetric==='volume'?' on':''}" onclick="setMetric('volume')">Volume</button>
         </div>
       </div>
       <div class="chart-card">
-        <div class="chart-title" id="chart-main-title">—<span id="chart-main-sub"></span></div>
+        <div class="chart-title"><span id="chart-main-label">—</span><span id="chart-main-pr" style="font-size:11px;color:var(--accent);font-weight:500;margin-left:10px"></span></div>
         <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="chart-card">
-          <div class="chart-title">Max weight per session<span></span></div>
+          <div class="chart-title">Max weight per session</div>
           <div class="chart-wrap"><canvas id="chart-w"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Max reps per session<span></span></div>
+          <div class="chart-title">Max reps per session</div>
           <div class="chart-wrap"><canvas id="chart-r"></canvas></div>
         </div>
       </div>
       <div class="chart-card">
-        <div class="chart-title">Personal records<span></span></div>
+        <div class="chart-title">Personal records</div>
         <div class="pr-chips" id="pr-chips"></div>
       </div>
     </div>`;
 
+  // Use requestAnimationFrame to ensure DOM is painted before Chart.js touches canvas
+  requestAnimationFrame(() => drawCharts());
+}
+
+function setMetric(m) {
+  progMetric = m;
+  document.querySelectorAll('.metric-btn').forEach(b => {
+    b.classList.toggle('on', b.textContent.toLowerCase() === m);
+  });
   drawCharts();
 }
 
-function updMetricBtns() {
-  document.querySelectorAll('.metric-btn').forEach(b => {
-    b.classList.toggle('on', b.textContent.toLowerCase() === progMetric);
-  });
-}
-
 function getExData(name) {
-  // Returns sorted array of { date, maxWeight, maxReps, totalVol, sets }
-  const dates = Object.keys(DB).sort();
-  return dates.map(date => {
+  return Object.keys(DB).sort().map(date => {
     const sets = DB[date]?.[name];
     if (!sets || !sets.length) return null;
-    const weights = sets.map(s => parseFloat(s.weight)||0).filter(Boolean);
-    const reps    = sets.map(s => parseInt(s.reps)||0).filter(Boolean);
-    const vol     = sets.reduce((a,s) => {
-      const w=parseFloat(s.weight)||0, r=parseInt(s.reps)||0;
-      return a + (w&&r ? w*r : 0);
+    const weights = sets.map(s => parseFloat(s.weight)||0).filter(v => v > 0);
+    const reps    = sets.map(s => parseInt(s.reps)||0).filter(v => v > 0);
+    const vol     = sets.reduce((a, s) => {
+      const w = parseFloat(s.weight)||0, r = parseInt(s.reps)||0;
+      return a + (w && r ? w * r : 0);
     }, 0);
     return {
       date,
-      label: parseLocal(date).toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+      label:     parseLocal(date).toLocaleDateString('en-US', {month:'short', day:'numeric'}),
       maxWeight: weights.length ? Math.max(...weights) : 0,
-      maxReps:   reps.length   ? Math.max(...reps)    : 0,
+      maxReps:   reps.length    ? Math.max(...reps)    : 0,
       totalVol:  vol,
       sets:      sets.length
     };
   }).filter(Boolean);
 }
 
-const CHART_DEFAULTS = {
+const COPT = {
   responsive: true,
   maintainAspectRatio: false,
-  animation: { duration: 400 },
+  animation: { duration: 300 },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -1050,191 +1067,99 @@ const CHART_DEFAULTS = {
       borderWidth: 1,
       titleColor: '#eeeef0',
       bodyColor: '#818cf8',
-      padding: 10,
-      callbacks: {}
+      padding: 10
     }
   },
   scales: {
-    x: {
-      grid: { color: '#2a2a35' },
-      ticks: { color: '#6b6b80', font: { size: 11 } }
-    },
-    y: {
-      grid: { color: '#2a2a35' },
-      ticks: { color: '#6b6b80', font: { size: 11 } },
-      beginAtZero: false
-    }
+    x: { grid: { color: '#2a2a35' }, ticks: { color: '#6b6b80', font: { size: 11 } } },
+    y: { grid: { color: '#2a2a35' }, ticks: { color: '#6b6b80', font: { size: 11 } }, beginAtZero: false }
   }
 };
 
-function makeDataset(data, yKey, color) {
-  return {
-    data: data.map(d => ({ x: d.label, y: d[yKey] })),
-    borderColor: color,
-    backgroundColor: color + '22',
-    pointBackgroundColor: color,
-    pointBorderColor: '#0d0d10',
-    pointBorderWidth: 2,
-    pointRadius: 5,
-    pointHoverRadius: 7,
-    fill: true,
-    tension: 0.35,
-    borderWidth: 2.5
-  };
+function lineChart(id, labels, vals, color, unit) {
+  if (!vals.length) return;
+  const peak = vals.lastIndexOf(Math.max(...vals));
+  const ptColors = vals.map((_, i) => i === peak ? '#f87171' : color);
+  const ptSizes  = vals.map((_, i) => i === peak ? 8 : 5);
+  makeChart(id, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        borderColor: color,
+        backgroundColor: color + '18',
+        pointBackgroundColor: ptColors,
+        pointBorderColor: '#0d0d10',
+        pointBorderWidth: 2,
+        pointRadius: ptSizes,
+        pointHoverRadius: 9,
+        fill: true,
+        tension: 0.35,
+        borderWidth: 2.5
+      }]
+    },
+    options: {
+      ...COPT,
+      plugins: {
+        ...COPT.plugins,
+        tooltip: {
+          ...COPT.plugins.tooltip,
+          callbacks: { label: c => c.parsed.y + unit }
+        }
+      }
+    }
+  });
 }
 
-function destroyChart(ref) { if (ref) { try { ref.destroy(); } catch(e){} } return null; }
-
 function drawCharts() {
-  const name = document.getElementById('prog-ex-sel')?.value || progEx;
-  progEx = name;
-  const data = getExData(name);
+  const sel = document.getElementById('prog-ex-sel');
+  if (sel) progEx = sel.value;
 
-  // Destroy old charts
-  chartWeight = destroyChart(chartWeight);
-  chartReps   = destroyChart(chartReps);
-  chartVol    = destroyChart(chartVol);
+  const data = getExData(progEx);
+  const labels = data.map(d => d.label);
 
   if (!data.length) {
-    ['chart-main','chart-w','chart-r'].forEach(id => {
-      const c = document.getElementById(id);
-      if (c) c.closest('.chart-card').querySelector('.chart-wrap').innerHTML =
-        '<div class="no-data-msg">No data for this exercise yet</div>';
-    });
+    ['chart-main','chart-w','chart-r'].forEach(id => destroyChart(id));
+    const pc = document.getElementById('pr-chips');
+    if (pc) pc.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px">No data for this exercise yet.</div>';
     return;
   }
 
-  const labels = data.map(d => d.label);
-
-  // ── Main chart (toggled metric) ──
-  const metricMap = {
-    weight: { key:'maxWeight', color:'#818cf8', label:'Max Weight (kg)', title:'Max weight over time' },
-    reps:   { key:'maxReps',   color:'#34d399', label:'Max Reps',        title:'Max reps over time'   },
-    volume: { key:'totalVol',  color:'#fbbf24', label:'Volume (kg)',     title:'Total volume per session' }
+  // ── Main chart based on selected metric ──
+  const metricCfg = {
+    weight: { key:'maxWeight', color:'#818cf8', title:'Max weight over time',       unit:' kg'      },
+    reps:   { key:'maxReps',   color:'#34d399', title:'Max reps over time',         unit:' reps'    },
+    volume: { key:'totalVol',  color:'#fbbf24', title:'Total volume per session',   unit:' kg vol'  }
   };
-  const m = metricMap[progMetric];
-
-  const titleEl = document.getElementById('chart-main-title');
-  const subEl   = document.getElementById('chart-main-sub');
-  if (titleEl) titleEl.childNodes[0].textContent = m.title;
-
-  // Mark the peak point
-  const vals   = data.map(d => d[m.key]);
+  const mc   = metricCfg[progMetric];
+  const vals = data.map(d => d[mc.key]);
   const peakVal = Math.max(...vals);
   const peakIdx = vals.lastIndexOf(peakVal);
-  if (subEl) subEl.textContent = `  PR: ${peakVal}${progMetric==='weight'?'kg':progMetric==='volume'?' kg vol':' reps'} on ${data[peakIdx].label}`;
 
-  const pointColors = vals.map((v, i) => i === peakIdx ? '#f87171' : m.color);
-  const pointSizes  = vals.map((v, i) => i === peakIdx ? 9 : 5);
+  const lbl = document.getElementById('chart-main-label');
+  const pr  = document.getElementById('chart-main-pr');
+  if (lbl) lbl.textContent = mc.title;
+  if (pr)  pr.textContent  = `PR: ${peakVal}${mc.unit} on ${data[peakIdx].label}`;
 
-  const mainCtx = document.getElementById('chart-main');
-  if (mainCtx) {
-    chartVol = new Chart(mainCtx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: vals,
-          borderColor: m.color,
-          backgroundColor: m.color + '18',
-          pointBackgroundColor: pointColors,
-          pointBorderColor: '#0d0d10',
-          pointBorderWidth: 2,
-          pointRadius: pointSizes,
-          pointHoverRadius: 9,
-          fill: true,
-          tension: 0.35,
-          borderWidth: 2.5
-        }]
-      },
-      options: {
-        ...CHART_DEFAULTS,
-        plugins: {
-          ...CHART_DEFAULTS.plugins,
-          tooltip: {
-            ...CHART_DEFAULTS.plugins.tooltip,
-            callbacks: {
-              label: ctx => {
-                const unit = progMetric==='weight'?' kg':progMetric==='volume'?' kg vol':' reps';
-                return ctx.parsed.y + unit;
-              }
-            }
-          }
-        }
-      }
-    });
-  }
+  lineChart('chart-main', labels, vals, mc.color, mc.unit);
 
-  // ── Weight mini chart ──
-  const wCtx = document.getElementById('chart-w');
-  if (wCtx) {
-    const wVals = data.map(d => d.maxWeight);
-    const wPeak = wVals.lastIndexOf(Math.max(...wVals));
-    chartWeight = new Chart(wCtx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: wVals,
-          borderColor: '#818cf8',
-          backgroundColor: '#818cf818',
-          pointBackgroundColor: wVals.map((_,i) => i===wPeak?'#f87171':'#818cf8'),
-          pointBorderColor: '#0d0d10',
-          pointBorderWidth: 2,
-          pointRadius: wVals.map((_,i) => i===wPeak?8:4),
-          pointHoverRadius: 7,
-          fill: true, tension: 0.35, borderWidth: 2
-        }]
-      },
-      options: {
-        ...CHART_DEFAULTS,
-        plugins: { ...CHART_DEFAULTS.plugins, tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: c => c.parsed.y+' kg' } } }
-      }
-    });
-  }
-
-  // ── Reps mini chart ──
-  const rCtx = document.getElementById('chart-r');
-  if (rCtx) {
-    const rVals = data.map(d => d.maxReps);
-    const rPeak = rVals.lastIndexOf(Math.max(...rVals));
-    chartReps = new Chart(rCtx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          data: rVals,
-          borderColor: '#34d399',
-          backgroundColor: '#34d39918',
-          pointBackgroundColor: rVals.map((_,i) => i===rPeak?'#f87171':'#34d399'),
-          pointBorderColor: '#0d0d10',
-          pointBorderWidth: 2,
-          pointRadius: rVals.map((_,i) => i===rPeak?8:4),
-          pointHoverRadius: 7,
-          fill: true, tension: 0.35, borderWidth: 2
-        }]
-      },
-      options: {
-        ...CHART_DEFAULTS,
-        plugins: { ...CHART_DEFAULTS.plugins, tooltip: { ...CHART_DEFAULTS.plugins.tooltip, callbacks: { label: c => c.parsed.y+' reps' } } }
-      }
-    });
-  }
+  // ── Weight + Reps mini charts (always shown) ──
+  lineChart('chart-w', labels, data.map(d => d.maxWeight), '#818cf8', ' kg');
+  lineChart('chart-r', labels, data.map(d => d.maxReps),   '#34d399', ' reps');
 
   // ── PR chips ──
   const prEl = document.getElementById('pr-chips');
-  if (prEl && data.length) {
-    const bestW = Math.max(...data.map(d=>d.maxWeight));
-    const bestR = Math.max(...data.map(d=>d.maxReps));
-    const bestV = Math.max(...data.map(d=>d.totalVol));
-    const sessions = data.length;
-    const totalSets = data.reduce((a,d)=>a+d.sets,0);
+  if (prEl) {
+    const bestW = Math.max(...data.map(d => d.maxWeight));
+    const bestR = Math.max(...data.map(d => d.maxReps));
+    const bestV = Math.max(...data.map(d => d.totalVol));
     prEl.innerHTML = [
-      bestW  ? `<div class="pr-chip">🏋️ Max weight <strong>${bestW} kg</strong></div>` : '',
-      bestR  ? `<div class="pr-chip">🔁 Max reps <strong>${bestR}</strong></div>` : '',
-      bestV  ? `<div class="pr-chip">⚡ Best volume <strong>${bestV.toLocaleString()} kg</strong></div>` : '',
-      `<div class="pr-chip">📅 Sessions <strong>${sessions}</strong></div>`,
-      `<div class="pr-chip">📊 Total sets <strong>${totalSets}</strong></div>`,
+      bestW ? `<div class="pr-chip">🏋️ Max weight <strong>${bestW} kg</strong></div>` : '',
+      bestR ? `<div class="pr-chip">🔁 Max reps <strong>${bestR}</strong></div>` : '',
+      bestV ? `<div class="pr-chip">⚡ Best volume <strong>${bestV.toLocaleString()} kg</strong></div>` : '',
+      `<div class="pr-chip">📅 Sessions <strong>${data.length}</strong></div>`,
+      `<div class="pr-chip">📊 Total sets <strong>${data.reduce((a,d)=>a+d.sets,0)}</strong></div>`,
     ].join('');
   }
 }
