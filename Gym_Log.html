@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiftLog</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d10;--s1:#16161a;--s2:#1e1e24;--s3:#26262e;
+  --border:#2a2a35;--border2:#383848;
+  --text:#eeeef0;--muted:#6b6b80;--faint:#3a3a48;
+  --accent:#818cf8;--accent-dim:#3730a3;--accent-bg:#1e1d3f;
+  --green:#34d399;--green-bg:#052e1c;--green-border:#065f46;
+  --red:#f87171;--red-bg:#2d1010;
+  --radius:10px;--radius-lg:14px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;font-size:14px}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:var(--s1);border-bottom:1px solid var(--border);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{font-size:18px;font-weight:800;letter-spacing:-.5px}
+.logo em{color:var(--accent);font-style:normal}
+.topbar-btns{display:flex;gap:8px;align-items:center}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;transition:.15s}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.btn-green:hover{background:#065f46}
+.btn-accent{background:var(--accent-dim);color:var(--accent);border:1px solid #4a45b0}
+.btn-accent:hover{background:var(--accent);color:#fff}
+.btn-red{background:var(--red-bg);color:var(--red);border:1px solid #5a1a1a}
+.btn-red:hover{background:#5a1a1a}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn-icon{padding:7px;border-radius:7px}
+
+/* LAYOUT */
+.shell{max-width:760px;margin:0 auto;padding:24px 20px 80px}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:.15s}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover:not(.on){color:var(--text)}
+.pane{display:none}.pane.on{display:block}
+
+/* DATE ROW */
+.date-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:10px;flex-wrap:wrap}
+.date-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.date-controls{display:flex;gap:7px;align-items:center}
+.date-input{background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:7px 12px;border-radius:var(--radius);font-size:14px;outline:none;font-family:inherit}
+.date-input:focus{border-color:var(--accent)}
+
+/* SEC LABEL */
+.sec-label{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:20px 0 10px}
+
+/* EXERCISE CARD */
+.ex-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden}
+.ex-head{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--border)}
+.ex-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.ex-name{flex:1;font-size:15px;font-weight:600}
+.ex-vol{font-size:11px;color:var(--muted);background:var(--s3);padding:2px 9px;border-radius:20px;white-space:nowrap}
+
+/* SETS TABLE */
+.sets-wrap{overflow-x:auto}
+.sets-tbl{width:100%;border-collapse:collapse;min-width:280px}
+.sets-tbl thead th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:7px 12px;background:var(--s2);text-align:center;font-weight:500}
+.sets-tbl thead th:first-child{text-align:left;padding-left:15px}
+.sets-tbl tbody td{padding:5px 8px;border-top:1px solid var(--border);text-align:center;vertical-align:middle}
+.sets-tbl tbody td:first-child{padding-left:15px}
+.set-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--s3);font-size:11px;font-weight:700;color:var(--muted)}
+.num-inp{width:78px;background:var(--s3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:14px;text-align:center;outline:none;font-family:inherit;-moz-appearance:textfield}
+.num-inp::-webkit-outer-spin-button,.num-inp::-webkit-inner-spin-button{-webkit-appearance:none}
+.num-inp:focus{border-color:var(--accent)}
+.check-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border2);background:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+.check-btn.done{background:var(--green-bg);border-color:var(--green)}
+.del-set-btn{width:24px;height:24px;border-radius:5px;border:none;background:none;color:var(--faint);cursor:pointer;font-size:16px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+.del-set-btn:hover{background:var(--red-bg);color:var(--red)}
+
+/* CARD FOOT */
+.ex-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 13px}
+.prog{font-size:11px;padding:2px 9px;border-radius:20px;background:var(--s3);color:var(--muted)}
+.prog.done{background:var(--green-bg);color:var(--green)}
+.add-set-btn{background:none;border:1px dashed var(--border2);border-radius:6px;padding:4px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit;transition:.15s}
+.add-set-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* DEL EXERCISE BUTTON */
+.del-ex-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid #5a1a1a;background:var(--red-bg);color:var(--red);font-family:inherit;transition:.15s}
+.del-ex-btn:hover{background:#5a1a1a;color:#fca5a5}
+.del-ex-btn svg{width:12px;height:12px}
+
+/* ADD PANEL */
+.add-panel{background:var(--s1);border:1px dashed var(--border2);border-radius:var(--radius-lg);padding:16px;margin-top:6px}
+.add-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:5px}
+.field-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.ex-wrap{position:relative;flex:1;min-width:190px}
+.ex-inp{width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:8px 13px;border-radius:var(--radius);font-size:14px;outline:none;font-family:inherit}
+.ex-inp:focus{border-color:var(--accent)}
+.drop{position:absolute;top:calc(100%+4px);left:0;right:0;background:var(--s2);border:1px solid var(--border2);border-radius:var(--radius);z-index:200;max-height:210px;overflow-y:auto;box-shadow:0 12px 32px rgba(0,0,0,.6);display:none}
+.drop.open{display:block}
+.drop-item{padding:9px 13px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:8px;transition:.1s}
+.drop-item:hover,.drop-item.hi{background:var(--s3)}
+.di-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.di-badge{font-size:10px;padding:1px 6px;border-radius:20px;background:var(--accent-bg);color:var(--accent)}
+.di-count{margin-left:auto;font-size:11px;color:var(--muted)}
+.drop-none{padding:10px 13px;color:var(--muted);font-size:13px;font-style:italic}
+.sets-sel{background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:8px 11px;border-radius:var(--radius);font-size:14px;outline:none;cursor:pointer;font-family:inherit}
+
+/* HISTORY */
+.hist-group{margin-bottom:26px}
+.hist-date-row{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.hist-date-row::after{content:'';flex:1;height:1px;background:var(--border)}
+.hist-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:8px}
+.hist-exname{padding:9px 15px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.hist-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.hist-tbl th{text-align:center;padding:6px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--s2);font-weight:500}
+.hist-tbl td{text-align:center;padding:7px 12px;border-top:1px solid var(--border)}
+.hist-tbl tr:hover td{background:var(--s2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--accent-bg);color:var(--accent)}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+.stat-box{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.stat-num{font-size:24px;font-weight:700;color:var(--accent)}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:var(--muted)}
+.empty-ico{font-size:38px;margin-bottom:12px}
+.empty p{font-size:14px;line-height:1.8}
+
+/* HOW-TO BANNER */
+.howto{background:var(--accent-bg);border:1px solid var(--accent-dim);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent);line-height:1.6}
+.howto strong{color:#a5b4fc}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);padding:9px 18px;border-radius:9px;font-size:13px;font-weight:500;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red-bg);color:var(--red);border-color:#5a1a1a}
+
+@media(max-width:500px){
+  .topbar{padding:0 12px}
+  .shell{padding:16px 12px 60px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stats-grid .stat-box:last-child{grid-column:1/-1}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Lift<em>Log</em></div>
+  <div class="topbar-btns">
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('load-input').click()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 9v1.5a1 1 0 001 1h8a1 1 0 001-1V9M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Load Excel
+    </button>
+    <button class="btn btn-green btn-sm" onclick="saveExcel()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 8.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Save Excel
+    </button>
+  </div>
+</div>
+<input type="file" id="load-input" accept=".xlsx" style="display:none" onchange="loadExcel(event)">
+
+<div class="shell">
+  <div class="tabs">
+    <button class="tab on" id="tab-log"     onclick="switchTab('log')">Log Workout</button>
+    <button class="tab"    id="tab-history" onclick="switchTab('history')">History</button>
+    <button class="tab"    id="tab-stats"   onclick="switchTab('stats')">Stats</button>
+  </div>
+
+  <!-- LOG -->
+  <div class="pane on" id="pane-log">
+    <div class="howto">
+      <strong>How it works:</strong> Log your workout → click <strong>Save Excel</strong> → it downloads/updates <code>LiftLog.xlsx</code>.
+      Next session, click <strong>Load Excel</strong> to pick that same file and all your history comes back.
+    </div>
+    <div class="date-row">
+      <span class="date-label">Logging for</span>
+      <div class="date-controls">
+        <button class="btn btn-outline btn-icon btn-sm" onclick="shiftDate(-1)">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 2L3 5l3.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <input type="date" class="date-input" id="workout-date" onchange="renderLog()">
+        <button class="btn btn-outline btn-icon btn-sm" onclick="shiftDate(1)">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2L7 5l-3.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="goToday()">Today</button>
+      </div>
+    </div>
+    <div class="sec-label">Exercises</div>
+    <div id="log-list"></div>
+    <!-- Add exercise panel -->
+    <div class="add-panel">
+      <div class="add-row">
+        <div class="field" style="flex:1;min-width:190px">
+          <div class="field-label">Exercise</div>
+          <div class="ex-wrap">
+            <input type="text" class="ex-inp" id="ex-inp"
+              placeholder="Type or pick from list…"
+              autocomplete="off"
+              oninput="onExInput(this.value)"
+              onfocus="onExInput(this.value)"
+              onkeydown="onExKey(event)">
+            <div class="drop" id="ex-drop"></div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Sets</div>
+          <select class="sets-sel" id="sets-count">
+            <option value="1">1</option><option value="2">2</option>
+            <option value="3" selected>3</option><option value="4">4</option>
+            <option value="5">5</option><option value="6">6</option>
+          </select>
+        </div>
+        <div class="field" style="justify-content:flex-end">
+          <button class="btn btn-accent" onclick="addExercise()">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="pane" id="pane-history"><div id="history-content"></div></div>
+
+  <!-- STATS -->
+  <div class="pane" id="pane-stats"><div id="stats-content"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+//  DATA
+// ─────────────────────────────────────────
+let DB = {};          // { "2025-03-14": { "Bench Press": [{weight,reps,done},...] } }
+let exList = [];      // exercise name history, most-recent first
+
+function persist() {
+  try {
+    localStorage.setItem('ll2_db', JSON.stringify(DB));
+    localStorage.setItem('ll2_ex', JSON.stringify(exList));
+  } catch(e) {}
+}
+function restore() {
+  try { DB = JSON.parse(localStorage.getItem('ll2_db') || '{}'); } catch(e) { DB = {}; }
+  try { exList = JSON.parse(localStorage.getItem('ll2_ex') || '[]'); } catch(e) { exList = []; }
+}
+
+function registerEx(name) {
+  name = name.trim();
+  const i = exList.findIndex(e => e.toLowerCase() === name.toLowerCase());
+  if (i > -1) exList.splice(i, 1);
+  exList.unshift(name);
+  persist();
+}
+
+// ─────────────────────────────────────────
+//  DATE HELPERS
+// ─────────────────────────────────────────
+function today() { return new Date().toISOString().slice(0, 10); }
+function getDate() { return document.getElementById('workout-date').value; }
+function fmtDate(s) {
+  if (!s) return '';
+  return new Date(s + 'T00:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+}
+function shiftDate(n) {
+  const el = document.getElementById('workout-date');
+  const d = new Date(el.value + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  el.value = d.toISOString().slice(0, 10);
+  renderLog();
+}
+function goToday() {
+  document.getElementById('workout-date').value = today();
+  renderLog();
+}
+
+function getDayData(date)       { return DB[date] || {}; }
+function setDayData(date, data) { DB[date] = data; persist(); }
+function esc(s)                 { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// ─────────────────────────────────────────
+//  LOG TAB
+// ─────────────────────────────────────────
+function renderLog() {
+  const date = getDate();
+  const day  = getDayData(date);
+  const names = Object.keys(day);
+  const el = document.getElementById('log-list');
+  el.innerHTML = names.length
+    ? names.map(n => cardHTML(n, day[n])).join('')
+    : `<div class="empty"><div class="empty-ico">🏋️</div><p>No exercises yet for this day.<br>Add one below to start.</p></div>`;
+}
+
+function cardHTML(name, sets) {
+  const done = sets.filter(s => s.done).length;
+  const allDone = done === sets.length && sets.length > 0;
+  let vol = 0;
+  sets.forEach(s => { if (s.weight && s.reps) vol += parseFloat(s.weight) * parseInt(s.reps); });
+
+  const rows = sets.map((s, i) => `
+    <tr>
+      <td><span class="set-num">${i+1}</span></td>
+      <td><input class="num-inp" type="number" min="0" step="0.5" placeholder="—"
+        value="${s.weight || ''}"
+        oninput="updSet('${esc(name)}',${i},'weight',this.value)"></td>
+      <td><input class="num-inp" type="number" min="0" step="1" placeholder="—"
+        value="${s.reps || ''}"
+        oninput="updSet('${esc(name)}',${i},'reps',this.value)"></td>
+      <td>
+        <button class="check-btn ${s.done ? 'done' : ''}" onclick="toggleDone('${esc(name)}',${i})">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M2 6.5L5 9.5L10 4" stroke="${s.done ? '#34d399' : '#6b6b80'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </td>
+      <td><button class="del-set-btn" onclick="delSet('${esc(name)}',${i})" title="Remove set">×</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="ex-card">
+      <div class="ex-head">
+        <span class="ex-dot"></span>
+        <span class="ex-name">${name}</span>
+        ${vol > 0 ? `<span class="ex-vol">${vol.toLocaleString()} kg vol</span>` : ''}
+        <button class="del-ex-btn" onclick="delExercise('${esc(name)}')">
+          <svg viewBox="0 0 14 14" fill="none">
+            <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v1M4 3.5l.667 8h4.666L10 3.5"
+              stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Delete
+        </button>
+      </div>
+      <div class="sets-wrap">
+        <table class="sets-tbl">
+          <thead><tr>
+            <th style="text-align:left">Set</th>
+            <th>Weight (kg)</th>
+            <th>Reps</th>
+            <th>Done</th>
+            <th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="ex-foot">
+        <button class="add-set-btn" onclick="addSet('${esc(name)}')">+ add set</button>
+        <span class="prog ${allDone ? 'done' : ''}">${done}/${sets.length} done</span>
+      </div>
+    </div>`;
+}
+
+function updSet(name, i, field, val) {
+  const date = getDate(), day = getDayData(date);
+  if (!day[name]?.[i]) return;
+  day[name][i][field] = val;
+  setDayData(date, day);
+  // update volume badge without full re-render
+  document.querySelectorAll('.ex-card').forEach(card => {
+    const nm = card.querySelector('.ex-name');
+    if (!nm || nm.textContent !== name) return;
+    let v = 0;
+    day[name].forEach(s => { if(s.weight && s.reps) v += parseFloat(s.weight) * parseInt(s.reps); });
+    let ve = card.querySelector('.ex-vol');
+    if (v > 0) {
+      if (ve) ve.textContent = v.toLocaleString() + ' kg vol';
+      else nm.insertAdjacentHTML('afterend', `<span class="ex-vol">${v.toLocaleString()} kg vol</span>`);
+    } else if (ve) ve.remove();
+  });
+}
+
+function toggleDone(name, i) {
+  const date = getDate(), day = getDayData(date);
+  if (!day[name]?.[i]) return;
+  day[name][i].done = !day[name][i].done;
+  setDayData(date, day);
+  renderLog();
+}
+
+function addSet(name) {
+  const date = getDate(), day = getDayData(date);
+  if (!day[name]) return;
+  day[name].push({ weight: '', reps: '', done: false });
+  setDayData(date, day);
+  renderLog();
+}
+
+function delSet(name, i) {
+  const date = getDate(), day = getDayData(date);
+  if (!day[name] || day[name].length <= 1) { toast('Need at least 1 set', true); return; }
+  day[name].splice(i, 1);
+  setDayData(date, day);
+  renderLog();
+}
+
+function delExercise(name) {
+  if (!confirm(`Delete "${name}" for ${fmtDate(getDate())}?`)) return;
+  const date = getDate(), day = getDayData(date);
+  delete day[name];
+  setDayData(date, day);
+  renderLog();
+  toast(`Deleted: ${name}`);
+}
+
+// ─────────────────────────────────────────
+//  EXERCISE DROPDOWN
+// ─────────────────────────────────────────
+let dropHi = -1;
+
+function onExInput(val) {
+  const drop = document.getElementById('ex-drop');
+  const q = val.trim().toLowerCase();
+  const matches = exList.filter(e => !q || e.toLowerCase().includes(q));
+  if (!matches.length && !q) { drop.classList.remove('open'); return; }
+  const today_data = getDayData(getDate());
+  if (matches.length) {
+    drop.innerHTML = matches.map((e, i) => {
+      const days = Object.values(DB).filter(d => d[e]).length;
+      const isToday = !!today_data[e];
+      return `<div class="drop-item" data-i="${i}" onmousedown="pickEx('${esc(e)}')">
+        <span class="di-dot"></span>
+        <span>${e}</span>
+        ${isToday ? '<span class="di-badge">today</span>' : ''}
+        <span class="di-count">${days}d</span>
+      </div>`;
+    }).join('');
+  } else {
+    drop.innerHTML = `<div class="drop-none">Press Add to create "${val.trim()}"</div>`;
+  }
+  drop.classList.add('open');
+  dropHi = -1;
+}
+
+function onExKey(e) {
+  const drop = document.getElementById('ex-drop');
+  const items = drop.querySelectorAll('.drop-item');
+  if (e.key === 'ArrowDown') {
+    dropHi = Math.min(dropHi + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('hi', i === dropHi));
+    e.preventDefault();
+  } else if (e.key === 'ArrowUp') {
+    dropHi = Math.max(dropHi - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('hi', i === dropHi));
+    e.preventDefault();
+  } else if (e.key === 'Enter') {
+    if (dropHi >= 0 && items[dropHi]) items[dropHi].dispatchEvent(new MouseEvent('mousedown'));
+    else addExercise();
+    e.preventDefault();
+  } else if (e.key === 'Escape') {
+    closeDrop();
+  }
+}
+
+function closeDrop() { document.getElementById('ex-drop').classList.remove('open'); dropHi = -1; }
+function pickEx(name) { document.getElementById('ex-inp').value = name; closeDrop(); }
+document.addEventListener('click', e => { if (!e.target.closest('.ex-wrap')) closeDrop(); });
+
+function addExercise() {
+  const inp = document.getElementById('ex-inp');
+  const name = inp.value.trim();
+  if (!name) { toast('Enter an exercise name', true); return; }
+  const n = parseInt(document.getElementById('sets-count').value);
+  const date = getDate(), day = getDayData(date);
+  if (day[name]) { toast(`"${name}" is already added for today`, true); return; }
+  day[name] = Array.from({ length: n }, () => ({ weight: '', reps: '', done: false }));
+  setDayData(date, day);
+  registerEx(name);
+  inp.value = '';
+  closeDrop();
+  renderLog();
+  toast(`Added: ${name}`);
+}
+
+// ─────────────────────────────────────────
+//  HISTORY TAB
+// ─────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-content');
+  const dates = Object.keys(DB).sort((a, b) => b.localeCompare(a));
+  if (!dates.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📅</div><p>No history yet.<br>Log a workout and save.</p></div>`;
+    return;
+  }
+  el.innerHTML = dates.map(date => {
+    const day = DB[date];
+    const names = Object.keys(day);
+    if (!names.length) return '';
+    const cards = names.map(name => {
+      const sets = day[name];
+      let vol = 0;
+      sets.forEach(s => { if (s.weight && s.reps) vol += parseFloat(s.weight) * parseInt(s.reps); });
+      const rows = sets.map((s, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${s.weight || '—'}</td>
+          <td>${s.reps || '—'}</td>
+          <td>${s.done ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--faint)">—</span>'}</td>
+        </tr>`).join('');
+      return `<div class="hist-card">
+        <div class="hist-exname">
+          <span class="ex-dot"></span>${name}
+          ${vol > 0 ? `<span class="badge" style="margin-left:auto">${vol.toLocaleString()} kg</span>` : ''}
+        </div>
+        <table class="hist-tbl">
+          <thead><tr><th>Set</th><th>Weight</th><th>Reps</th><th>Done</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+
+    return `<div class="hist-group">
+      <div class="hist-date-row">
+        ${fmtDate(date)}
+        <button class="btn btn-outline btn-sm" style="margin-left:auto"
+          onclick="document.getElementById('workout-date').value='${date}';switchTab('log')">Edit</button>
+        <button class="btn btn-red btn-sm"
+          onclick="delDay('${date}')">Delete</button>
+      </div>
+      ${cards}
+    </div>`;
+  }).join('');
+}
+
+function delDay(date) {
+  if (!confirm(`Delete all data for ${fmtDate(date)}?`)) return;
+  delete DB[date];
+  persist();
+  renderHistory();
+  toast('Day deleted');
+}
+
+// ─────────────────────────────────────────
+//  STATS TAB
+// ─────────────────────────────────────────
+function renderStats() {
+  const el = document.getElementById('stats-content');
+  const dates = Object.keys(DB);
+  if (!dates.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📊</div><p>No data yet.</p></div>`;
+    return;
+  }
+  let totalSets = 0, totalVol = 0;
+  const exMap = {};
+  dates.forEach(d => {
+    Object.entries(DB[d]).forEach(([name, sets]) => {
+      totalSets += sets.length;
+      sets.forEach(s => {
+        if (s.weight && s.reps) totalVol += parseFloat(s.weight) * parseInt(s.reps);
+      });
+      exMap[name] = (exMap[name] || 0) + sets.length;
+    });
+  });
+  const topRows = Object.entries(exMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 10)
+    .map(([name, sets]) => {
+      const days = Object.values(DB).filter(d => d[name]).length;
+      return `<tr>
+        <td style="text-align:left;padding:8px 14px">
+          <span class="ex-dot" style="display:inline-block;margin-right:8px;vertical-align:middle"></span>${name}
+        </td>
+        <td>${days}</td><td>${sets}</td>
+      </tr>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num">${dates.length}</div><div class="stat-lbl">Days trained</div></div>
+      <div class="stat-box"><div class="stat-num">${totalSets}</div><div class="stat-lbl">Total sets</div></div>
+      <div class="stat-box"><div class="stat-num">${(totalVol/1000).toFixed(1)}t</div><div class="stat-lbl">Total volume</div></div>
+    </div>
+    <div class="sec-label">Top exercises</div>
+    <div class="hist-card">
+      <table class="hist-tbl">
+        <thead><tr>
+          <th style="text-align:left;padding-left:14px">Exercise</th>
+          <th>Days</th><th>Sets</th>
+        </tr></thead>
+        <tbody>${topRows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ─────────────────────────────────────────
+//  EXCEL LOAD
+//  Handles the visual format: Date+Exercise
+//  are in a purple "header row" above the
+//  set rows, so we carry them forward as
+//  we scan down.
+// ─────────────────────────────────────────
+function loadExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellStyles: false });
+
+      // Scan every sheet — each date gets its own tab, skip Summary/PRs
+      const skipSheets = ['Summary','PRs','summary','prs'];
+      const sheetsToRead = wb.SheetNames.filter(n => !skipSheets.some(s => n.toLowerCase().includes(s.toLowerCase())));
+
+      let count = 0;
+      sheetsToRead.forEach(wsName => {
+        const ws = wb.Sheets[wsName];
+        if (!ws) return;
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+
+        // Find header row
+        let headerIdx = -1;
+        for (let i = 0; i < aoa.length; i++) {
+          const row = aoa[i];
+          if (row.some(c => String(c).trim() === 'Date') &&
+              row.some(c => String(c).trim() === 'Exercise') &&
+              row.some(c => String(c).trim() === 'Set')) {
+            headerIdx = i; break;
+          }
+        }
+        if (headerIdx === -1) return; // no data in this sheet
+
+        const hdr     = aoa[headerIdx].map(c => String(c).trim());
+        const ci      = name => hdr.indexOf(name);
+        const iDate   = ci('Date');
+        const iEx     = ci('Exercise');
+        const iSet    = ci('Set');
+        const iWeight = ci('Weight (kg)');
+        const iReps   = ci('Reps');
+        const iStatus = ci('Status');
+
+        let curDate = '', curEx = '';
+
+        for (let i = headerIdx + 1; i < aoa.length; i++) {
+          const row     = aoa[i];
+          const rawDate = String(row[iDate] || '').trim();
+          const rawEx   = String(row[iEx]   || '').trim();
+          const rawSet  = String(row[iSet]  || '').trim();
+          const rawW    = String(iWeight >= 0 ? row[iWeight] || '' : '').trim();
+          const rawR    = String(iReps   >= 0 ? row[iReps]   || '' : '').trim();
+          const rawSt   = String(iStatus >= 0 ? row[iStatus] || '' : '').trim();
+
+          // Skip non-data rows
+          if (!rawSet || rawSet === 'Set' || rawSet.includes('sets') || rawSet === 'TOTAL' || rawSet.startsWith('↳')) {
+            if (rawDate) curDate = normaliseDate(rawDate);
+            if (rawEx && rawEx !== 'Exercise' && rawEx !== 'TOTAL' && !rawEx.startsWith('↳')) curEx = rawEx;
+            continue;
+          }
+
+          if (rawDate) curDate = normaliseDate(rawDate);
+          if (rawEx && rawEx !== 'Exercise') curEx = rawEx;
+          if (!curDate || !curEx) continue;
+
+          const si = parseInt(rawSet) - 1;
+          if (isNaN(si) || si < 0) continue;
+
+          if (!DB[curDate]) DB[curDate] = {};
+          if (!DB[curDate][curEx]) DB[curDate][curEx] = [];
+          while (DB[curDate][curEx].length <= si)
+            DB[curDate][curEx].push({ weight: '', reps: '', done: false });
+
+          const slot = DB[curDate][curEx][si];
+          slot.weight = rawW;
+          slot.reps   = rawR;
+          slot.done   = rawSt.includes('Done') || rawSt.includes('✓') || rawSt.toLowerCase() === 'yes';
+          registerEx(curEx);
+          count++;
+        }
+      });
+
+      persist();
+      renderLog();
+      toast(`Loaded ${count} set entries from ${file.name}`);
+    } catch(err) {
+      toast('Error reading file: ' + err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+// Convert display dates like "Mar 14, 2026" back to "2026-03-14"
+function normaliseDate(s) {
+  if (!s) return '';
+  s = s.trim();
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Try parsing
+  const d = new Date(s);
+  if (!isNaN(d)) return d.toISOString().slice(0, 10);
+  return s;
+}
+
+// ─────────────────────────────────────────
+//  EXCEL SAVE
+//  • One sheet per workout date
+//  • Single "Summary" sheet
+//  • Single "PRs" sheet
+// ─────────────────────────────────────────
+function saveExcel() {
+  const dates = Object.keys(DB).sort();
+  if (!dates.length) { toast('Nothing to save yet', true); return; }
+
+  const wb = XLSX.utils.book_new();
+  dates.forEach(date => buildDateSheet(wb, date));
+  buildSummarySheet(wb);
+  buildPRSheet(wb);
+
+  XLSX.writeFile(wb, 'LiftLog.xlsx');
+  toast('Saved LiftLog.xlsx ✓');
+}
+
+// ── colour palette ──
+const C = {
+  darkNavy:'1A1A2E', navy:'16213E', midBlue:'0F3460', purple:'533483',
+  accentDark:'3730A3', white:'FFFFFF', offWhite:'F8F9FF',
+  lightGray:'E8EAF6', midGray:'C5CAE9', darkGray:'78829A',
+  altRow:'EEEEFF', border:'C5CAE9',
+  greenDark:'065F46', greenBg:'DCFCE7',
+  redTxt:'991B1B', redBg:'FEE2E2',
+};
+
+function cs(o) {
+  const s = {};
+  if (o.bold || o.sz || o.color || o.italic)
+    s.font = { bold:!!o.bold, sz:o.sz||11, color:{rgb:o.color||C.darkNavy}, italic:!!o.italic, name:'Calibri' };
+  if (o.bg)
+    s.fill = { patternType:'solid', fgColor:{rgb:o.bg} };
+  if (o.h || o.v)
+    s.alignment = { horizontal:o.h||'left', vertical:o.v||'center', wrapText:false };
+  if (o.border) {
+    const t = (c) => ({ style:'thin',   color:{rgb:c||C.border} });
+    const m = (c) => ({ style:'medium', color:{rgb:c||C.midBlue} });
+    s.border = {
+      top:    o.borderTop    ? m(o.borderColor) : t(o.borderColor),
+      bottom: o.borderBottom ? m(o.borderColor) : t(o.borderColor),
+      left:   t(o.borderColor),
+      right:  t(o.borderColor),
+    };
+  }
+  return s;
+}
+
+function sc(ws, r, c, v, style, fmt) {
+  const addr = XLSX.utils.encode_cell({r, c});
+  const t = typeof v === 'number' ? 'n' : 's';
+  ws[addr] = { v, t, s: style || {} };
+  if (fmt) ws[addr].z = fmt;
+}
+
+function titleBlock(ws, merges, r, title, sub, nc) {
+  sc(ws,r,0,title, cs({bold:true,sz:15,color:C.white,bg:C.darkNavy,h:'center',v:'center'}));
+  for(let c=1;c<nc;c++) sc(ws,r,c,'',cs({bg:C.darkNavy}));
+  merges.push({s:{r,c:0},e:{r,c:nc-1}}); r++;
+  if (sub) {
+    sc(ws,r,0,sub, cs({italic:true,sz:10,color:C.midGray,bg:C.navy,h:'center'}));
+    for(let c=1;c<nc;c++) sc(ws,r,c,'',cs({bg:C.navy}));
+    merges.push({s:{r,c:0},e:{r,c:nc-1}}); r++;
+  }
+  for(let c=0;c<nc;c++) sc(ws,r,c,'',{}); r++;  // spacer
+  return r;
+}
+
+function headerRow(ws, r, headers, bgColor) {
+  headers.forEach((h, c) => {
+    sc(ws,r,c,h, cs({bold:true,sz:11,color:C.white,bg:bgColor||C.midBlue,h:'center',border:true,borderTop:true,borderBottom:true,borderColor:C.accentDark}));
+  });
+  return r + 1;
+}
+
+function buildDateSheet(wb, date) {
+  const ws = {}; ws['!merges'] = []; let r = 0;
+  const NC = 7;
+  const day = DB[date];
+  const names = Object.keys(day);
+  if (!names.length) return;
+
+  const dispDate = new Date(date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  // Title
+  sc(ws,r,0,dispDate, cs({bold:true,sz:14,color:C.white,bg:C.darkNavy,h:'center',v:'center'}));
+  for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:C.darkNavy}));
+  ws['!merges'].push({s:{r,c:0},e:{r,c:NC-1}}); r++;
+  // spacer
+  for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+
+  // Column headers — Date + Exercise repeated on every set row so loading is reliable
+  r = headerRow(ws, r, ['Date','Exercise','Set','Weight (kg)','Reps','Volume (kg)','Status']);
+
+  names.forEach(name => {
+    const sets = day[name];
+
+    // Set rows — Date and Exercise on EVERY row (makes loading trivial)
+    sets.forEach((s, si) => {
+      const bg  = si % 2 === 0 ? C.offWhite : C.altRow;
+      const w   = parseFloat(s.weight) || 0;
+      const rep = parseInt(s.reps)     || 0;
+      const vol = (w && rep) ? w * rep : '';
+      const isDone = s.done;
+
+      sc(ws,r,0,date,  cs({color:C.darkGray,h:'center',bg,border:true}));  // ISO date — for reliable re-loading
+      sc(ws,r,1,name,  cs({bold:si===0,color:si===0?C.midBlue:C.darkGray,bg,border:true}));
+      sc(ws,r,2,si+1,  cs({bold:true,color:C.midBlue,h:'center',bg,border:true}));
+      sc(ws,r,3,s.weight!==''?(parseFloat(s.weight)||''):'', cs({h:'center',bg,border:true}),'#,##0.0');
+      sc(ws,r,4,s.reps!==''?(parseInt(s.reps)||''):'',       cs({h:'center',bg,border:true}));
+      sc(ws,r,5,vol!==''?vol:'', cs({bold:!!vol,color:vol?C.midBlue:C.darkGray,h:'center',bg,border:true}),'#,##0.0');
+      sc(ws,r,6,isDone?'✓  Done':'○  Pending',
+        cs({bold:isDone,color:isDone?C.greenDark:C.darkGray,h:'center',bg:isDone?C.greenBg:bg,border:true}));
+      r++;
+    });
+
+    // Totals row per exercise
+    const valid  = sets.filter(s => s.weight && s.reps);
+    const totVol = valid.reduce((a,s) => a+parseFloat(s.weight)*parseInt(s.reps), 0);
+    const maxW   = Math.max(0, ...sets.map(s => parseFloat(s.weight)||0));
+    sc(ws,r,0,'',         cs({bg:C.lightGray,border:true}));
+    sc(ws,r,1,'↳ '+name,  cs({italic:true,color:C.darkGray,bg:C.lightGray,border:true}));
+    sc(ws,r,2,sets.length+' sets', cs({italic:true,color:C.darkGray,h:'center',bg:C.lightGray,border:true}));
+    sc(ws,r,3,maxW||'',   cs({bold:true,color:C.midBlue,h:'center',bg:C.lightGray,border:true}),'#,##0.0');
+    sc(ws,r,4,'',         cs({bg:C.lightGray,border:true}));
+    sc(ws,r,5,totVol||'', cs({bold:true,color:C.accentDark,h:'center',bg:C.lightGray,border:true}),'#,##0.0');
+    sc(ws,r,6,valid.length+'/'+sets.length+' logged',
+      cs({italic:true,color:C.darkGray,h:'center',bg:C.lightGray,border:true}));
+    r++;
+    // gap between exercises
+    for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+  });
+
+  ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
+  ws['!cols'] = [{wch:13},{wch:26},{wch:7},{wch:13},{wch:8},{wch:13},{wch:13}];
+  ws['!rows'] = [{hpt:26}];
+
+  // Sheet tab name: "14 Mar" style — short and unique
+  const tabName = new Date(date+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'2-digit'});
+  // Avoid duplicate tab names
+  let finalName = tabName, n = 2;
+  while (wb.SheetNames.includes(finalName)) finalName = tabName + ' (' + (n++) + ')';
+  XLSX.utils.book_append_sheet(wb, ws, finalName);
+}
+
+function buildSummarySheet(wb) {
+  const ws = {}; ws['!merges'] = []; let r = 0; const NC = 6;
+  r = titleBlock(ws, ws['!merges'], r, 'EXERCISE SUMMARY', 'All-time stats by exercise', NC);
+  r = headerRow(ws, r, ['Exercise','Days Trained','Total Sets','Total Volume (kg)','Max Weight (kg)','Completion %']);
+
+  const ex = {};
+  Object.entries(DB).forEach(([date, day]) => {
+    Object.entries(day).forEach(([name, sets]) => {
+      if (!ex[name]) ex[name] = {days:new Set(), sets:0, vol:0, maxW:0, done:0};
+      ex[name].days.add(date);
+      ex[name].sets += sets.length;
+      ex[name].done += sets.filter(s=>s.done).length;
+      sets.forEach(s => {
+        const w=parseFloat(s.weight)||0, rp=parseInt(s.reps)||0;
+        if(w&&rp) ex[name].vol += w*rp;
+        if(w) ex[name].maxW = Math.max(ex[name].maxW,w);
+      });
+    });
+  });
+
+  Object.entries(ex).sort((a,b)=>b[1].vol-a[1].vol).forEach(([name,d],i) => {
+    const bg  = i%2===0 ? C.offWhite : C.altRow;
+    const pct = d.sets>0 ? Math.round(d.done/d.sets*100)+'%' : '—';
+    const allDone = d.done===d.sets && d.sets>0;
+    sc(ws,r,0,name,             cs({bold:true,bg,border:true}));
+    sc(ws,r,1,d.days.size,      cs({h:'center',bg,border:true}));
+    sc(ws,r,2,d.sets,           cs({h:'center',bg,border:true}));
+    sc(ws,r,3,Math.round(d.vol),cs({bold:true,color:C.midBlue,h:'center',bg,border:true}),'#,##0');
+    sc(ws,r,4,d.maxW||'',       cs({h:'center',bg,border:true}),'#,##0.0');
+    sc(ws,r,5,pct,              cs({bold:true,color:allDone?C.greenDark:C.darkGray,h:'center',bg:allDone?C.greenBg:bg,border:true}));
+    r++;
+  });
+
+  ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
+  ws['!cols'] = [{wch:28},{wch:14},{wch:12},{wch:19},{wch:16},{wch:14}];
+  ws['!rows'] = [{hpt:26},{hpt:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+}
+
+function buildPRSheet(wb) {
+  const ws = {}; ws['!merges'] = []; let r = 0; const NC = 4;
+  r = titleBlock(ws, ws['!merges'], r, '🏆  PERSONAL RECORDS', 'Heaviest weight ever lifted per exercise', NC);
+  r = headerRow(ws, r, ['Exercise','Max Weight (kg)','Date Achieved','Total Sessions']);
+
+  const pr = {};
+  Object.entries(DB).forEach(([date, day]) => {
+    Object.entries(day).forEach(([name, sets]) => {
+      if (!pr[name]) pr[name] = {w:0, date:'', sessions:0};
+      pr[name].sessions++;
+      sets.forEach(s => {
+        const w=parseFloat(s.weight)||0;
+        if(w>pr[name].w) { pr[name].w=w; pr[name].date=date; }
+      });
+    });
+  });
+
+  Object.entries(pr).sort((a,b)=>b[1].w-a[1].w).forEach(([name,d],i) => {
+    const bg = i%2===0 ? C.offWhite : C.altRow;
+    const dd = d.date ? new Date(d.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+    sc(ws,r,0,name,       cs({bold:true,bg,border:true}));
+    sc(ws,r,1,d.w||'',    cs({bold:true,color:C.midBlue,h:'center',bg,border:true}),'#,##0.0');
+    sc(ws,r,2,dd,         cs({italic:true,color:C.darkGray,h:'center',bg,border:true}));
+    sc(ws,r,3,d.sessions, cs({h:'center',bg,border:true}));
+    r++;
+  });
+
+  ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
+  ws['!cols'] = [{wch:28},{wch:17},{wch:17},{wch:15}];
+  ws['!rows'] = [{hpt:26},{hpt:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'PRs');
+}
+
+// ─────────────────────────────────────────
+//  TABS + TOAST
+// ─────────────────────────────────────────
+function switchTab(t) {
+  ['log','history','stats'].forEach(id => {
+    document.getElementById('tab-'+id).classList.toggle('on', id===t);
+    document.getElementById('pane-'+id).classList.toggle('on', id===t);
+  });
+  if (t==='history') renderHistory();
+  if (t==='stats')   renderStats();
+}
+
+let toastTimer;
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+restore();
+document.getElementById('workout-date').value = today();
+renderLog();
+</script>
+</body>
+</html>
