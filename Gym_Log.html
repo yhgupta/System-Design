@@ -176,10 +176,14 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 9v1.5a1 1 0 001 1h8a1 1 0 001-1V9M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Load Excel
     </button>
-    <button class="btn btn-green btn-sm" onclick="saveExcel()">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 8.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Save Excel
-    </button>
+    <div style="display:flex;align-items:center;gap:0">
+      <button id="btn-save" class="btn btn-green btn-sm" onclick="saveExcel()" style="border-radius:8px 0 0 8px;border-right:none">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 8.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save Excel
+      </button>
+      <button id="btn-forget" onclick="forgetSaveFile()" title="Forget saved location — next save will ask where to save"
+        style="display:none;padding:7px 8px;border-radius:0 8px 8px 0;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);cursor:pointer;font-size:13px;line-height:1;border-left:1px solid var(--green-border)">✕</button>
+    </div>
   </div>
 </div>
 <input type="file" id="load-input" accept=".xlsx" style="display:none" onchange="loadExcel(event)">
@@ -195,8 +199,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <!-- LOG -->
   <div class="pane on" id="pane-log">
     <div class="howto">
-      <strong>How it works:</strong> Log your workout → click <strong>Save Excel</strong> → it downloads/updates <code>LiftLog.xlsx</code>.
-      Next session, click <strong>Load Excel</strong> to pick that same file and all your history comes back.
+      <strong>How it works:</strong> Log your workout → click <strong>Save Excel</strong> → pick where to save <code>LiftLog.xlsx</code> once.
+      After that it saves directly to the same file every time. Click <strong>Load Excel</strong> to restore history from an existing file.
     </div>
     <div class="date-row">
       <span class="date-label">Logging for</span>
@@ -729,21 +733,132 @@ function normaliseDate(s) {
 
 // ─────────────────────────────────────────
 //  EXCEL SAVE
-//  • One sheet per workout date
-//  • Single "Summary" sheet
-//  • Single "PRs" sheet
+//  First save: showSaveFilePicker so user
+//  picks location once. Handle stored in
+//  IndexedDB. Every subsequent save writes
+//  directly to that same file — no download.
 // ─────────────────────────────────────────
-function saveExcel() {
-  const dates = Object.keys(DB).sort();
-  if (!dates.length) { toast('Nothing to save yet', true); return; }
+let _saveHandle = null;
+const FS_SUPPORTED = ('showSaveFilePicker' in window);
 
+// ── IndexedDB helpers ──
+function _idb() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('liftlog_fh', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('h');
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = () => rej();
+  });
+}
+async function _storeHandle(h) {
+  try { const db = await _idb(); db.transaction('h','readwrite').objectStore('h').put(h,'save'); } catch(e){}
+}
+async function _loadHandle() {
+  try {
+    const db = await _idb();
+    return new Promise(res => {
+      const r = db.transaction('h','readonly').objectStore('h').get('save');
+      r.onsuccess = e => res(e.target.result || null);
+      r.onerror   = () => res(null);
+    });
+  } catch(e) { return null; }
+}
+async function _clearHandle() {
+  try { const db = await _idb(); db.transaction('h','readwrite').objectStore('h').delete('save'); } catch(e){}
+}
+
+function buildWB() {
+  const dates = Object.keys(DB).sort();
   const wb = XLSX.utils.book_new();
   dates.forEach(date => buildDateSheet(wb, date));
   buildSummarySheet(wb);
   buildPRSheet(wb);
+  return wb;
+}
 
-  XLSX.writeFile(wb, 'LiftLog.xlsx');
-  toast('Saved LiftLog.xlsx ✓');
+function wbToBlob(wb) {
+  const out = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  return new Blob([out], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+async function saveExcel() {
+  const dates = Object.keys(DB).sort();
+  if (!dates.length) { toast('Nothing to save yet', true); return; }
+
+  const blob = wbToBlob(buildWB());
+
+  // ── Try File System Access API (Chrome/Edge) ──
+  if (FS_SUPPORTED) {
+    // Re-use stored handle if we have one
+    if (!_saveHandle) _saveHandle = await _loadHandle();
+
+    // Verify permission on existing handle
+    if (_saveHandle) {
+      try {
+        let perm = await _saveHandle.queryPermission({ mode:'readwrite' });
+        if (perm !== 'granted') perm = await _saveHandle.requestPermission({ mode:'readwrite' });
+        if (perm !== 'granted') _saveHandle = null; // lost permission, re-pick
+      } catch(e) { _saveHandle = null; }
+    }
+
+    // No handle yet — show picker once
+    if (!_saveHandle) {
+      try {
+        _saveHandle = await window.showSaveFilePicker({
+          suggestedName: 'LiftLog.xlsx',
+          types: [{ description:'Excel Workbook', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']} }]
+        });
+        await _storeHandle(_saveHandle);
+      } catch(e) {
+        if (e.name === 'AbortError') return; // user cancelled
+        _saveHandle = null;
+      }
+    }
+
+    if (_saveHandle) {
+      try {
+        const w = await _saveHandle.createWritable();
+        await w.write(blob);
+        await w.close();
+        updateSaveBtn();
+        toast('Saved → ' + _saveHandle.name + ' ✓');
+        return;
+      } catch(e) {
+        _saveHandle = null;
+        await _clearHandle();
+        // fall through to download
+      }
+    }
+  }
+
+  // ── Fallback: plain download (Firefox / Safari) ──
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'LiftLog.xlsx'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Downloaded LiftLog.xlsx');
+}
+
+function updateSaveBtn() {
+  const btn    = document.getElementById('btn-save');
+  const forget = document.getElementById('btn-forget');
+  if (!btn) return;
+  if (_saveHandle) {
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 8.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Save → ${_saveHandle.name}`;
+    btn.title = 'Saves directly to: ' + _saveHandle.name;
+    if (forget) forget.style.display = 'block';
+  } else {
+    btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M11 8.5v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2M6.5 1.5v7M4 6l2.5 2.5L9 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Save Excel`;
+    btn.title = FS_SUPPORTED ? 'Pick where to save LiftLog.xlsx — remembered for next time' : 'Downloads LiftLog.xlsx';
+    if (forget) forget.style.display = 'none';
+  }
+}
+
+async function forgetSaveFile() {
+  _saveHandle = null;
+  await _clearHandle();
+  updateSaveBtn();
+  toast('Save location cleared — next save will ask again');
 }
 
 // ── colour palette ──
@@ -1191,6 +1306,14 @@ function toast(msg, err) {
 restore();
 document.getElementById('workout-date').value = today();
 renderLog();
+
+// Restore save file handle on startup
+(async () => {
+  if (FS_SUPPORTED) {
+    _saveHandle = await _loadHandle();
+    updateSaveBtn();
+  }
+})();
 </script>
 </body>
 </html>
