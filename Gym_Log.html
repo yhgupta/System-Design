@@ -165,6 +165,48 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .pr-chip { background:var(--accent-bg); border:1px solid var(--accent-dim); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--accent); }
 .pr-chip strong { color:#a5b4fc; }
 .no-data-msg { text-align:center; padding:40px; color:var(--muted); font-size:14px; }
+
+/* CATEGORIES */
+.cat-filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.cat-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid transparent;transition:.15s;background:var(--s3);color:var(--muted);font-family:inherit}
+.cat-pill:hover{color:var(--text)}
+.cat-pill.on{color:#fff}
+.cat-pill .cp-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.drop-group-label{padding:6px 13px 3px;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;border-top:1px solid var(--border)}
+.drop-group-label:first-child{border-top:none}
+.ex-cat-badge{font-size:10px;padding:1px 7px;border-radius:20px;font-weight:600;margin-left:4px}
+.card-cat-strip{height:3px;width:100%}
+
+/* ── CATEGORY SYSTEM ── */
+.cat-pill-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid;transition:.15s;font-family:inherit;background:transparent}
+.cat-pill-btn.active{color:#fff !important}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cat-strip{height:3px;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.ex-cat-tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;margin-left:2px;opacity:.9}
+.drop-grp-hdr{padding:5px 13px 3px;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px}
+.drop-grp-hdr:first-child{border-top:none}
+.drop-grp-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+/* progress group toggle */
+.prog-view-toggle{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.prog-view-toggle label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-right:4px}
+.pvt-btn{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border2);background:transparent;color:var(--muted);font-family:inherit;transition:.15s}
+.pvt-btn.on{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-dim)}
+
+/* ── GROUPS TAB ── */
+.group-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:12px;overflow:hidden}
+.group-card-head{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--border)}
+.group-color-bar{width:4px;height:28px;border-radius:3px;flex-shrink:0}
+.group-name{flex:1;font-size:15px;font-weight:600}
+.group-count{font-size:12px;color:var(--muted);background:var(--s3);padding:2px 9px;border-radius:20px}
+.group-ex-list{padding:10px 15px;display:flex;flex-wrap:wrap;gap:7px}
+.group-ex-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid}
+.group-ex-chip button{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0;margin-left:2px;opacity:.6}
+.group-ex-chip button:hover{opacity:1}
+.group-add-row{display:flex;gap:8px;padding:10px 15px;border-top:1px solid var(--border);flex-wrap:wrap}
+.add-group-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.group-inp{flex:1;min-width:160px;background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:8px 13px;border-radius:var(--radius);font-size:14px;outline:none;font-family:inherit}
+.group-inp:focus{border-color:var(--accent)}
+.assign-sel{background:var(--s2);border:1px solid var(--border2);color:var(--text);padding:7px 11px;border-radius:var(--radius);font-size:13px;outline:none;cursor:pointer;font-family:inherit;flex:1;min-width:140px}
 </style>
 </head>
 <body>
@@ -194,6 +236,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     <button class="tab"    id="tab-history" onclick="switchTab('history')">History</button>
     <button class="tab"    id="tab-stats"   onclick="switchTab('stats')">Stats</button>
     <button class="tab"    id="tab-progress" onclick="switchTab('progress')">Progress</button>
+    <button class="tab"    id="tab-groups"   onclick="switchTab('groups')">Groups</button>
   </div>
 
   <!-- LOG -->
@@ -217,10 +260,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
     </div>
     <div class="sec-label">Exercises</div>
     <div id="log-list"></div>
+    <!-- Category quick-pick pills -->
+    <div id="cat-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
     <!-- Add exercise panel -->
     <div class="add-panel">
       <div class="add-row">
-        <div class="field" style="flex:1;min-width:190px">
+        <div class="field" style="flex:1;min-width:180px">
           <div class="field-label">Exercise</div>
           <div class="ex-wrap">
             <input type="text" class="ex-inp" id="ex-inp"
@@ -231,6 +276,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
               onkeydown="onExKey(event)">
             <div class="drop" id="ex-drop"></div>
           </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Category</div>
+          <select class="sets-sel" id="cat-sel" style="min-width:110px">
+            <option value="">Auto-detect</option>
+          </select>
         </div>
         <div class="field">
           <div class="field-label">Sets</div>
@@ -256,6 +307,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
   <!-- STATS -->
   <div class="pane" id="pane-stats"><div id="stats-content"></div></div>
   <div class="pane" id="pane-progress"><div id="progress-content"></div></div>
+  <div class="pane" id="pane-groups"><div id="groups-content"></div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -264,25 +316,59 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 // ─────────────────────────────────────────
 //  DATA
 // ─────────────────────────────────────────
-let DB = {};          // { "2025-03-14": { "Bench Press": [{weight,reps,done},...] } }
-let exList = [];      // exercise name history, most-recent first
+let DB      = {};  // { "2025-03-14": { "Bench Press": [{weight,reps,done},...] } }
+let exList  = [];  // exercise name history, most-recent first
+let exCats  = {};  // { "Bench Press": "Chest" }  — exercise → group name
+let groups  = [];  // ["Chest","Legs",...] — user-defined group names (ordered)
+
+// Assign a rotating palette to groups by index
+const PALETTE = ['#f87171','#60a5fa','#34d399','#fbbf24','#a78bfa','#fb923c','#e879f9','#38bdf8','#4ade80','#94a3b8','#f472b6','#2dd4bf'];
+function catColor(cat) {
+  const i = groups.indexOf(cat);
+  return i >= 0 ? PALETTE[i % PALETTE.length] : '#818cf8';
+}
+function exCat(name) { return exCats[name] || ''; }
 
 function persist() {
   try {
-    localStorage.setItem('ll2_db', JSON.stringify(DB));
-    localStorage.setItem('ll2_ex', JSON.stringify(exList));
+    localStorage.setItem('ll2_db',     JSON.stringify(DB));
+    localStorage.setItem('ll2_ex',     JSON.stringify(exList));
+    localStorage.setItem('ll2_cats',   JSON.stringify(exCats));
+    localStorage.setItem('ll2_groups', JSON.stringify(groups));
   } catch(e) {}
 }
 function restore() {
-  try { DB = JSON.parse(localStorage.getItem('ll2_db') || '{}'); } catch(e) { DB = {}; }
-  try { exList = JSON.parse(localStorage.getItem('ll2_ex') || '[]'); } catch(e) { exList = []; }
+  try { DB     = JSON.parse(localStorage.getItem('ll2_db')     || '{}'); } catch(e) { DB = {}; }
+  try { exList = JSON.parse(localStorage.getItem('ll2_ex')     || '[]'); } catch(e) { exList = []; }
+  try { exCats = JSON.parse(localStorage.getItem('ll2_cats')   || '{}'); } catch(e) { exCats = {}; }
+  try { groups = JSON.parse(localStorage.getItem('ll2_groups') || '[]'); } catch(e) { groups = []; }
 }
 
-function registerEx(name) {
+function registerEx(name, cat) {
   name = name.trim();
   const i = exList.findIndex(e => e.toLowerCase() === name.toLowerCase());
   if (i > -1) exList.splice(i, 1);
   exList.unshift(name);
+  if (cat) exCats[name] = cat;
+  persist();
+}
+
+// ── Group management ──
+function addGroup(name) {
+  name = name.trim();
+  if (!name || groups.includes(name)) return;
+  groups.push(name);
+  persist();
+}
+function deleteGroup(name) {
+  groups = groups.filter(g => g !== name);
+  // un-assign exercises in this group
+  Object.keys(exCats).forEach(ex => { if (exCats[ex] === name) delete exCats[ex]; });
+  persist();
+}
+function assignExToGroup(exName, groupName) {
+  if (groupName) exCats[exName] = groupName;
+  else delete exCats[exName];
   persist();
 }
 
@@ -322,14 +408,47 @@ function esc(s)                 { return s.replace(/\\/g,'\\\\').replace(/'/g,"\
 // ─────────────────────────────────────────
 //  LOG TAB
 // ─────────────────────────────────────────
+let logCatFilter = 'All';
+
 function renderLog() {
-  const date = getDate();
-  const day  = getDayData(date);
+  const date  = getDate();
+  const day   = getDayData(date);
   const names = Object.keys(day);
+
+  // ── Rebuild category filter pills (only user-defined groups) ──
+  const pillsEl = document.getElementById('cat-pills');
+  if (pillsEl) {
+    const pills = ['All', ...groups];
+    pillsEl.innerHTML = pills.map(cat => {
+      const color  = cat === 'All' ? '#818cf8' : catColor(cat);
+      const active = logCatFilter === cat;
+      return `<button class="cat-pill-btn${active?' active':''}"
+        style="border-color:${color};color:${active?'#fff':color};background:${active?color:'transparent'}"
+        onclick="logCatFilter='${cat}';renderLog()">
+        <span class="cat-dot" style="background:${color}"></span>${cat}
+      </button>`;
+    }).join('');
+  }
+
+  // ── Populate category select in add panel (always sync with groups) ──
+  const catSel = document.getElementById('cat-sel');
+  if (catSel) {
+    const cur = catSel.value;
+    catSel.innerHTML = '<option value="">No group</option>' +
+      groups.map(g => `<option value="${g}"${g===cur?' selected':''}>${g}</option>`).join('');
+  }
+
+  // ── Filter exercises ──
+  const filtered = logCatFilter === 'All'
+    ? names
+    : names.filter(n => exCat(n) === logCatFilter);
+
   const el = document.getElementById('log-list');
-  el.innerHTML = names.length
-    ? names.map(n => cardHTML(n, day[n])).join('')
-    : `<div class="empty"><div class="empty-ico">🏋️</div><p>No exercises yet for this day.<br>Add one below to start.</p></div>`;
+  el.innerHTML = names.length === 0
+    ? `<div class="empty"><div class="empty-ico">🏋️</div><p>No exercises yet for this day.<br>Add one below to start.</p></div>`
+    : filtered.length === 0
+      ? `<div class="empty" style="padding:24px"><p style="color:var(--muted)">No "${logCatFilter}" exercises today.</p></div>`
+      : filtered.map(n => cardHTML(n, day[n])).join('');
 }
 
 function cardHTML(name, sets) {
@@ -357,11 +476,14 @@ function cardHTML(name, sets) {
       <td><button class="del-set-btn" onclick="delSet('${esc(name)}',${i})" title="Remove set">×</button></td>
     </tr>`).join('');
 
+  const cat   = exCat(name);
+  const color = catColor(cat);
   return `
-    <div class="ex-card">
+    <div class="ex-card" style="border-top:3px solid ${color}">
       <div class="ex-head">
-        <span class="ex-dot"></span>
+        <span class="ex-dot" style="background:${color}"></span>
         <span class="ex-name">${name}</span>
+        <span class="ex-cat-tag" style="background:${color}22;color:${color};border:1px solid ${color}44">${cat}</span>
         ${vol > 0 ? `<span class="ex-vol">${vol.toLocaleString()} kg vol</span>` : ''}
         <button class="del-ex-btn" onclick="delExercise('${esc(name)}')">
           <svg viewBox="0 0 14 14" fill="none">
@@ -456,21 +578,53 @@ function onExInput(val) {
   const q = val.trim().toLowerCase();
   const matches = exList.filter(e => !q || e.toLowerCase().includes(q));
   if (!matches.length && !q) { drop.classList.remove('open'); return; }
+
   const today_data = getDayData(getDate());
-  if (matches.length) {
-    drop.innerHTML = matches.map((e, i) => {
+
+  // Group exercises by their assigned group; ungrouped go under "—"
+  const grouped = {};   // { groupName: [exName,...] }
+  const ungrouped = [];
+  matches.forEach(e => {
+    const g = exCat(e);
+    if (g) {
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push(e);
+    } else {
+      ungrouped.push(e);
+    }
+  });
+
+  let html = '';
+  // Groups first (in user-defined order)
+  groups.forEach(g => {
+    if (!grouped[g] || !grouped[g].length) return;
+    const color = catColor(g);
+    html += `<div class="drop-grp-hdr"><span class="drop-grp-dot" style="background:${color}"></span>${g}</div>`;
+    grouped[g].forEach(e => {
       const days = Object.values(DB).filter(d => d[e]).length;
-      const isToday = !!today_data[e];
-      return `<div class="drop-item" data-i="${i}" onmousedown="pickEx('${esc(e)}')">
+      html += `<div class="drop-item" onmousedown="pickExWithCat('${esc(e)}','${g}')">
+        <span class="di-dot" style="background:${color}"></span>
+        <span>${e}</span>
+        ${today_data[e] ? '<span class="di-badge">today</span>' : ''}
+        ${days > 0 ? `<span class="di-count">${days}d</span>` : ''}
+      </div>`;
+    });
+  });
+  // Ungrouped
+  if (ungrouped.length) {
+    if (html) html += `<div class="drop-grp-hdr"><span class="drop-grp-dot" style="background:#818cf8"></span>No group</div>`;
+    ungrouped.forEach(e => {
+      const days = Object.values(DB).filter(d => d[e]).length;
+      html += `<div class="drop-item" onmousedown="pickExWithCat('${esc(e)}','')">
         <span class="di-dot"></span>
         <span>${e}</span>
-        ${isToday ? '<span class="di-badge">today</span>' : ''}
-        <span class="di-count">${days}d</span>
+        ${today_data[e] ? '<span class="di-badge">today</span>' : ''}
+        ${days > 0 ? `<span class="di-count">${days}d</span>` : ''}
       </div>`;
-    }).join('');
-  } else {
-    drop.innerHTML = `<div class="drop-none">Press Add to create "${val.trim()}"</div>`;
+    });
   }
+
+  drop.innerHTML = html || `<div class="drop-none">Press Add to create "${val.trim()}"</div>`;
   drop.classList.add('open');
   dropHi = -1;
 }
@@ -497,19 +651,28 @@ function onExKey(e) {
 
 function closeDrop() { document.getElementById('ex-drop').classList.remove('open'); dropHi = -1; }
 function pickEx(name) { document.getElementById('ex-inp').value = name; closeDrop(); }
+function pickExWithCat(name, cat) {
+  document.getElementById('ex-inp').value = name;
+  const sel = document.getElementById('cat-sel');
+  if (sel) sel.value = cat;
+  closeDrop();
+}
 document.addEventListener('click', e => { if (!e.target.closest('.ex-wrap')) closeDrop(); });
 
 function addExercise() {
   const inp = document.getElementById('ex-inp');
   const name = inp.value.trim();
   if (!name) { toast('Enter an exercise name', true); return; }
-  const n = parseInt(document.getElementById('sets-count').value);
+  const n   = parseInt(document.getElementById('sets-count').value);
+  const cat = document.getElementById('cat-sel')?.value || '';
   const date = getDate(), day = getDayData(date);
   if (day[name]) { toast(`"${name}" is already added for today`, true); return; }
   day[name] = Array.from({ length: n }, () => ({ weight: '', reps: '', done: false }));
   setDayData(date, day);
-  registerEx(name);
+  registerEx(name, cat || null);
   inp.value = '';
+  const sel = document.getElementById('cat-sel');
+  if (sel) sel.value = '';
   closeDrop();
   renderLog();
   toast(`Added: ${name}`);
@@ -926,41 +1089,48 @@ function buildDateSheet(wb, date) {
   const names = Object.keys(day);
   if (!names.length) return;
 
-  const dispDate = new Date(date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const dispDate = parseLocal(date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 
   // Title
   sc(ws,r,0,dispDate, cs({bold:true,sz:14,color:C.white,bg:C.darkNavy,h:'center',v:'center'}));
   for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:C.darkNavy}));
   ws['!merges'].push({s:{r,c:0},e:{r,c:NC-1}}); r++;
-  // spacer
   for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
 
-  // Column headers — Date + Exercise repeated on every set row so loading is reliable
   r = headerRow(ws, r, ['Date','Exercise','Set','Weight (kg)','Reps','Volume (kg)','Status']);
 
+  // ── Group exercises: assigned ones bucketed by group (in user order),
+  //    unassigned ones appended at the end under no header ──
+  const grouped   = {};  // { groupName: [exName, ...] }
+  const ungrouped = [];
   names.forEach(name => {
-    const sets = day[name];
+    const g = exCat(name);
+    if (g) { if (!grouped[g]) grouped[g] = []; grouped[g].push(name); }
+    else ungrouped.push(name);
+  });
 
-    // Set rows — Date and Exercise on EVERY row (makes loading trivial)
+  // Build ordered list: groups in user-defined order, then ungrouped
+  const orderedGroups = groups.filter(g => grouped[g]);  // only groups present today
+  const hasAnyGroup   = orderedGroups.length > 0;
+
+  function writeExercise(name) {
+    const sets = day[name];
     sets.forEach((s, si) => {
       const bg  = si % 2 === 0 ? C.offWhite : C.altRow;
       const w   = parseFloat(s.weight) || 0;
       const rep = parseInt(s.reps)     || 0;
       const vol = (w && rep) ? w * rep : '';
-      const isDone = s.done;
-
-      sc(ws,r,0,date,  cs({color:C.darkGray,h:'center',bg,border:true}));  // ISO date — for reliable re-loading
+      sc(ws,r,0,date,  cs({color:C.darkGray,h:'center',bg,border:true}));
       sc(ws,r,1,name,  cs({bold:si===0,color:si===0?C.midBlue:C.darkGray,bg,border:true}));
       sc(ws,r,2,si+1,  cs({bold:true,color:C.midBlue,h:'center',bg,border:true}));
       sc(ws,r,3,s.weight!==''?(parseFloat(s.weight)||''):'', cs({h:'center',bg,border:true}),'#,##0.0');
       sc(ws,r,4,s.reps!==''?(parseInt(s.reps)||''):'',       cs({h:'center',bg,border:true}));
       sc(ws,r,5,vol!==''?vol:'', cs({bold:!!vol,color:vol?C.midBlue:C.darkGray,h:'center',bg,border:true}),'#,##0.0');
-      sc(ws,r,6,isDone?'✓  Done':'○  Pending',
-        cs({bold:isDone,color:isDone?C.greenDark:C.darkGray,h:'center',bg:isDone?C.greenBg:bg,border:true}));
+      sc(ws,r,6,s.done?'✓  Done':'○  Pending',
+        cs({bold:s.done,color:s.done?C.greenDark:C.darkGray,h:'center',bg:s.done?C.greenBg:bg,border:true}));
       r++;
     });
-
-    // Totals row per exercise
+    // Exercise totals row
     const valid  = sets.filter(s => s.weight && s.reps);
     const totVol = valid.reduce((a,s) => a+parseFloat(s.weight)*parseInt(s.reps), 0);
     const maxW   = Math.max(0, ...sets.map(s => parseFloat(s.weight)||0));
@@ -973,26 +1143,166 @@ function buildDateSheet(wb, date) {
     sc(ws,r,6,valid.length+'/'+sets.length+' logged',
       cs({italic:true,color:C.darkGray,h:'center',bg:C.lightGray,border:true}));
     r++;
-    // gap between exercises
     for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+  }
+
+  // Write grouped exercises under their group header
+  orderedGroups.forEach(g => {
+    const color  = catColor(g);
+    const hexBg  = color.replace('#','');
+    // Group header row spanning all columns
+    sc(ws,r,0,'▸ '+g.toUpperCase(), cs({bold:true,sz:11,color:C.white,bg:hexBg,h:'left',border:true,borderColor:hexBg}));
+    for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:hexBg,border:true,borderColor:hexBg}));
+    r++;
+    grouped[g].forEach(name => writeExercise(name));
+  });
+
+  // Write ungrouped exercises — no header if there are also grouped ones, clean separation
+  if (ungrouped.length) {
+    if (hasAnyGroup) {
+      // subtle "other" divider only when mixed
+      sc(ws,r,0,'▸ OTHER', cs({bold:true,sz:11,color:C.white,bg:C.darkGray,h:'left',border:true,borderColor:C.darkGray}));
+      for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:C.darkGray,border:true,borderColor:C.darkGray}));
+      r++;
+    }
+    ungrouped.forEach(name => writeExercise(name));
+  }
+
+  ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
+  ws['!cols'] = [{wch:13},{wch:26},{wch:7},{wch:13},{wch:8},{wch:13},{wch:13}];
+  ws['!rows'] = [{hpt:26}];
+
+  const tabName = parseLocal(date).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'2-digit'});
+  let finalName = tabName, n = 2;
+  while (wb.SheetNames.includes(finalName)) finalName = tabName + ' (' + (n++) + ')';
+  XLSX.utils.book_append_sheet(wb, ws, finalName);
+}
+
+function buildGroupSheet(wb, groupName) {
+  // Collect all exercises in this group and all dates they were logged
+  const allDates = Object.keys(DB).sort();
+  const members  = [...new Set(
+    allDates.flatMap(d => Object.keys(DB[d]).filter(ex => exCat(ex) === groupName))
+  )].sort();
+
+  if (!members.length) return; // nothing to show
+
+  const ws = {}; ws['!merges'] = []; let r = 0;
+  const NC = 7;
+  const color  = catColor(groupName);
+  // Convert hex to RGB for title bg — use midBlue as fallback since xlsx needs 6-char hex
+  const titleBg = color.replace('#','');
+
+  // Title
+  sc(ws,r,0,groupName.toUpperCase() + ' — GROUP LOG',
+    cs({bold:true,sz:14,color:C.white,bg:titleBg,h:'center',v:'center'}));
+  for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:titleBg}));
+  ws['!merges'].push({s:{r,c:0},e:{r,c:NC-1}}); r++;
+
+  const sub = `${members.length} exercise${members.length>1?'s':''} · ${allDates.filter(d=>Object.keys(DB[d]).some(ex=>exCat(ex)===groupName)).length} sessions`;
+  sc(ws,r,0,sub, cs({italic:true,sz:10,color:C.midGray,bg:C.navy,h:'center'}));
+  for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:C.navy}));
+  ws['!merges'].push({s:{r,c:0},e:{r,c:NC-1}}); r++;
+  for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+
+  r = headerRow(ws, r, ['Date','Exercise','Set','Weight (kg)','Reps','Volume (kg)','Status']);
+
+  // One block per date that has this group's exercises
+  allDates.forEach(date => {
+    const dayData = DB[date];
+    const dayMembers = members.filter(ex => dayData[ex]);
+    if (!dayMembers.length) return;
+
+    const dispDate = parseLocal(date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+    dayMembers.forEach(name => {
+      const sets = dayData[name];
+
+      // Exercise header row
+      sc(ws,r,0,dispDate, cs({bold:true,sz:10,color:C.white,bg:C.purple,border:true,borderColor:C.accentDark}));
+      sc(ws,r,1,name,     cs({bold:true,sz:11,color:C.white,bg:C.purple,border:true,borderColor:C.accentDark}));
+      for(let c=2;c<NC;c++) sc(ws,r,c,'',cs({bg:C.purple,border:true,borderColor:C.accentDark}));
+      r++;
+
+      // Set rows
+      sets.forEach((s,si) => {
+        const bg  = si%2===0 ? C.offWhite : C.altRow;
+        const w   = parseFloat(s.weight)||0;
+        const rep = parseInt(s.reps)||0;
+        const vol = (w&&rep) ? w*rep : '';
+        sc(ws,r,0,date,  cs({color:C.darkGray,h:'center',bg,border:true}));
+        sc(ws,r,1,name,  cs({color:C.darkGray,bg,border:true}));
+        sc(ws,r,2,si+1,  cs({bold:true,color:C.midBlue,h:'center',bg,border:true}));
+        sc(ws,r,3,s.weight!==''?(parseFloat(s.weight)||''):'', cs({h:'center',bg,border:true}),'#,##0.0');
+        sc(ws,r,4,s.reps!==''?(parseInt(s.reps)||''):'',       cs({h:'center',bg,border:true}));
+        sc(ws,r,5,vol!==''?vol:'', cs({bold:!!vol,color:vol?C.midBlue:C.darkGray,h:'center',bg,border:true}),'#,##0.0');
+        sc(ws,r,6,s.done?'✓  Done':'○  Pending',
+          cs({bold:s.done,color:s.done?C.greenDark:C.darkGray,h:'center',bg:s.done?C.greenBg:bg,border:true}));
+        r++;
+      });
+
+      // Exercise totals row
+      const valid  = sets.filter(s=>s.weight&&s.reps);
+      const totVol = valid.reduce((a,s)=>a+parseFloat(s.weight)*parseInt(s.reps),0);
+      const maxW   = Math.max(0,...sets.map(s=>parseFloat(s.weight)||0));
+      sc(ws,r,0,'',           cs({bg:C.lightGray,border:true}));
+      sc(ws,r,1,'↳ '+name,    cs({italic:true,color:C.darkGray,bg:C.lightGray,border:true}));
+      sc(ws,r,2,sets.length+' sets', cs({italic:true,color:C.darkGray,h:'center',bg:C.lightGray,border:true}));
+      sc(ws,r,3,maxW||'',     cs({bold:true,color:C.midBlue,h:'center',bg:C.lightGray,border:true}),'#,##0.0');
+      sc(ws,r,4,'',           cs({bg:C.lightGray,border:true}));
+      sc(ws,r,5,totVol||'',   cs({bold:true,color:C.accentDark,h:'center',bg:C.lightGray,border:true}),'#,##0.0');
+      sc(ws,r,6,valid.length+'/'+sets.length+' logged',
+        cs({italic:true,color:C.darkGray,h:'center',bg:C.lightGray,border:true}));
+      r++;
+    });
+    // Spacer between dates
+    for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+  });
+
+  // Group summary at bottom
+  for(let c=0;c<NC;c++) sc(ws,r,c,'',{}); r++;
+  sc(ws,r,0,'GROUP TOTALS',cs({bold:true,sz:11,color:C.white,bg:C.midBlue,border:true}));
+  for(let c=1;c<NC;c++) sc(ws,r,c,'',cs({bg:C.midBlue,border:true}));
+  r++;
+
+  members.forEach((name,i) => {
+    const bg = i%2===0?C.offWhite:C.altRow;
+    let totalSets=0,totalVol=0,maxW=0,sessions=0;
+    allDates.forEach(date => {
+      const sets = DB[date]?.[name]; if(!sets) return;
+      sessions++;
+      sets.forEach(s=>{
+        totalSets++;
+        const w=parseFloat(s.weight)||0,rep=parseInt(s.reps)||0;
+        if(w&&rep) totalVol+=w*rep;
+        if(w) maxW=Math.max(maxW,w);
+      });
+    });
+    sc(ws,r,0,'',              cs({bg,border:true}));
+    sc(ws,r,1,name,            cs({bold:true,bg,border:true}));
+    sc(ws,r,2,sessions,        cs({h:'center',bg,border:true}));
+    sc(ws,r,3,totalSets,       cs({h:'center',bg,border:true}));
+    sc(ws,r,4,Math.round(totalVol), cs({bold:true,color:C.midBlue,h:'center',bg,border:true}),'#,##0');
+    sc(ws,r,5,maxW||'',        cs({h:'center',bg,border:true}),'#,##0.0');
+    sc(ws,r,6,'',              cs({bg,border:true}));
+    r++;
   });
 
   ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
   ws['!cols'] = [{wch:13},{wch:26},{wch:7},{wch:13},{wch:8},{wch:13},{wch:13}];
   ws['!rows'] = [{hpt:26}];
 
-  // Sheet tab name: "14 Mar" style — short and unique
-  const tabName = new Date(date+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'2-digit'});
-  // Avoid duplicate tab names
-  let finalName = tabName, n = 2;
-  while (wb.SheetNames.includes(finalName)) finalName = tabName + ' (' + (n++) + ')';
-  XLSX.utils.book_append_sheet(wb, ws, finalName);
+  // Sheet tab name = group name (truncated to 31 chars, Excel limit)
+  let tabName = groupName.slice(0,28);
+  let n=2; const existing = wb.SheetNames;
+  while(existing.includes(tabName)) tabName = groupName.slice(0,25)+' ('+(n++)+')';
+  XLSX.utils.book_append_sheet(wb, ws, tabName);
 }
 
 function buildSummarySheet(wb) {
-  const ws = {}; ws['!merges'] = []; let r = 0; const NC = 6;
+  const ws = {}; ws['!merges'] = []; let r = 0; const NC = 7;
   r = titleBlock(ws, ws['!merges'], r, 'EXERCISE SUMMARY', 'All-time stats by exercise', NC);
-  r = headerRow(ws, r, ['Exercise','Days Trained','Total Sets','Total Volume (kg)','Max Weight (kg)','Completion %']);
+  r = headerRow(ws, r, ['Group','Exercise','Days Trained','Total Sets','Total Volume (kg)','Max Weight (kg)','Completion %']);
 
   const ex = {};
   Object.entries(DB).forEach(([date, day]) => {
@@ -1009,21 +1319,28 @@ function buildSummarySheet(wb) {
     });
   });
 
-  Object.entries(ex).sort((a,b)=>b[1].vol-a[1].vol).forEach(([name,d],i) => {
+  // Sort: by group first, then by volume
+  Object.entries(ex).sort((a,b) => {
+    const ga = exCat(a[0]) || 'zzz', gb = exCat(b[0]) || 'zzz';
+    if (ga !== gb) return ga.localeCompare(gb);
+    return b[1].vol - a[1].vol;
+  }).forEach(([name,d],i) => {
     const bg  = i%2===0 ? C.offWhite : C.altRow;
     const pct = d.sets>0 ? Math.round(d.done/d.sets*100)+'%' : '—';
     const allDone = d.done===d.sets && d.sets>0;
-    sc(ws,r,0,name,             cs({bold:true,bg,border:true}));
-    sc(ws,r,1,d.days.size,      cs({h:'center',bg,border:true}));
-    sc(ws,r,2,d.sets,           cs({h:'center',bg,border:true}));
-    sc(ws,r,3,Math.round(d.vol),cs({bold:true,color:C.midBlue,h:'center',bg,border:true}),'#,##0');
-    sc(ws,r,4,d.maxW||'',       cs({h:'center',bg,border:true}),'#,##0.0');
-    sc(ws,r,5,pct,              cs({bold:true,color:allDone?C.greenDark:C.darkGray,h:'center',bg:allDone?C.greenBg:bg,border:true}));
+    const grp = exCat(name) || '—';
+    sc(ws,r,0,grp,              cs({italic:!exCat(name),color:exCat(name)?C.midBlue:C.darkGray,bg,border:true}));
+    sc(ws,r,1,name,             cs({bold:true,bg,border:true}));
+    sc(ws,r,2,d.days.size,      cs({h:'center',bg,border:true}));
+    sc(ws,r,3,d.sets,           cs({h:'center',bg,border:true}));
+    sc(ws,r,4,Math.round(d.vol),cs({bold:true,color:C.midBlue,h:'center',bg,border:true}),'#,##0');
+    sc(ws,r,5,d.maxW||'',       cs({h:'center',bg,border:true}),'#,##0.0');
+    sc(ws,r,6,pct,              cs({bold:true,color:allDone?C.greenDark:C.darkGray,h:'center',bg:allDone?C.greenBg:bg,border:true}));
     r++;
   });
 
   ws['!ref']  = XLSX.utils.encode_range({s:{r:0,c:0},e:{r,c:NC-1}});
-  ws['!cols'] = [{wch:28},{wch:14},{wch:12},{wch:19},{wch:16},{wch:14}];
+  ws['!cols'] = [{wch:16},{wch:26},{wch:14},{wch:12},{wch:19},{wch:16},{wch:14}];
   ws['!rows'] = [{hpt:26},{hpt:14}];
   XLSX.utils.book_append_sheet(wb, ws, 'Summary');
 }
@@ -1068,77 +1385,101 @@ function buildPRSheet(wb) {
 // ─────────────────────────────────────────
 //  PROGRESS TAB
 // ─────────────────────────────────────────
-// Store chart instances keyed by canvas id so we can destroy precisely
-const _charts = {};
+let progMetric   = 'weight';   // 'weight' | 'reps' | 'volume'
+let progEx       = '';
+let progCat      = '';
+let progViewMode = 'exercise'; // 'exercise' | 'group'
 
-function destroyChart(id) {
-  if (_charts[id]) { try { _charts[id].destroy(); } catch(e){} delete _charts[id]; }
-}
-
-function makeChart(id, cfg) {
-  destroyChart(id);
-  const ctx = document.getElementById(id);
-  if (!ctx) return;
-  _charts[id] = new Chart(ctx, cfg);
-}
-
-let progMetric = 'weight';
-let progEx     = '';
-
-// Called every time we switch to Progress tab
+// ── Called every time we switch to Progress tab ──
 function renderProgress() {
   const el = document.getElementById('progress-content');
 
-  // Build unique exercise list from DB
+  // Build data: all exercises that have any logged data
   const allEx = [];
   Object.values(DB).forEach(day => {
     Object.keys(day).forEach(n => { if (!allEx.includes(n)) allEx.push(n); });
   });
   allEx.sort();
 
+  // Categories that have data
+  const allCats = [...new Set(allEx.map(n => exCat(n)))].sort();
+
   if (!allEx.length) {
     el.innerHTML = '<div class="empty"><div class="empty-ico">📈</div><p>No workout data yet.<br>Log some exercises first.</p></div>';
     return;
   }
 
-  if (!progEx || !allEx.includes(progEx)) progEx = allEx[0];
+  if (!progCat || !allCats.includes(progCat)) progCat = allCats[0] || '';
+  if (!progEx  || !allEx.includes(progEx))    progEx  = allEx[0]  || '';
 
-  const options = allEx.map(n => `<option value="${n}"${n===progEx?' selected':''}>${n}</option>`).join('');
+  const catOptions = allCats.map(c =>
+    `<option value="${c}"${c===progCat?' selected':''}>${c}</option>`).join('');
+  const exOptions = allEx
+    .filter(n => progViewMode === 'group' ? exCat(n) === progCat : true)
+    .map(n => `<option value="${n}"${n===progEx?' selected':''}>${n}</option>`).join('');
 
-  // Build scaffold HTML — canvases are stable, we only replace their data
   el.innerHTML = `
     <div class="progress-shell">
+      <!-- View mode toggle -->
+      <div class="prog-view-toggle">
+        <label>View by</label>
+        <button class="pvt-btn${progViewMode==='exercise'?' on':''}" onclick="progViewMode='exercise';renderProgress()">Exercise</button>
+        <button class="pvt-btn${progViewMode==='group'?' on':''}"    onclick="progViewMode='group';renderProgress()">Group</button>
+      </div>
+
+      <!-- Selectors row -->
       <div class="ex-selector-row">
-        <label>Exercise</label>
-        <select class="ex-select" id="prog-ex-sel" onchange="progEx=this.value;drawCharts()">${options}</select>
+        ${progViewMode==='group' ? `
+          <label>Group</label>
+          <select class="ex-select" id="prog-cat-sel" onchange="progCat=this.value;renderProgress()">${catOptions}</select>
+        ` : `
+          <label>Exercise</label>
+          <select class="ex-select" id="prog-ex-sel" onchange="progEx=this.value;drawCharts()">${exOptions}</select>
+        `}
         <div class="metric-toggle">
           <button class="metric-btn${progMetric==='weight'?' on':''}" onclick="setMetric('weight')">Weight</button>
           <button class="metric-btn${progMetric==='reps'?' on':''}"   onclick="setMetric('reps')">Reps</button>
           <button class="metric-btn${progMetric==='volume'?' on':''}" onclick="setMetric('volume')">Volume</button>
         </div>
       </div>
-      <div class="chart-card">
-        <div class="chart-title"><span id="chart-main-label">—</span><span id="chart-main-pr" style="font-size:11px;color:var(--accent);font-weight:500;margin-left:10px"></span></div>
-        <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      ${progViewMode==='group' ? `
+        <!-- GROUP VIEW: one chart per exercise in the group -->
+        <div id="group-charts"></div>
+        <div class="chart-card" style="margin-top:14px">
+          <div class="chart-title">Group personal records</div>
+          <div class="pr-chips" id="pr-chips"></div>
+        </div>
+      ` : `
+        <!-- SINGLE EXERCISE VIEW -->
         <div class="chart-card">
-          <div class="chart-title">Max weight per session</div>
-          <div class="chart-wrap"><canvas id="chart-w"></canvas></div>
+          <div class="chart-title">
+            <span id="chart-main-label">—</span>
+            <span id="chart-main-pr" style="font-size:11px;color:var(--accent);font-weight:500;margin-left:10px"></span>
+          </div>
+          <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="chart-card">
+            <div class="chart-title">Max weight per session</div>
+            <div class="chart-wrap"><canvas id="chart-w"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Max reps per session</div>
+            <div class="chart-wrap"><canvas id="chart-r"></canvas></div>
+          </div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Max reps per session</div>
-          <div class="chart-wrap"><canvas id="chart-r"></canvas></div>
+          <div class="chart-title">Personal records</div>
+          <div class="pr-chips" id="pr-chips"></div>
         </div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-title">Personal records</div>
-        <div class="pr-chips" id="pr-chips"></div>
-      </div>
+      `}
     </div>`;
 
-  // Use requestAnimationFrame to ensure DOM is painted before Chart.js touches canvas
-  requestAnimationFrame(() => drawCharts());
+  requestAnimationFrame(() => {
+    if (progViewMode === 'group') drawGroupCharts();
+    else drawCharts();
+  });
 }
 
 function setMetric(m) {
@@ -1146,7 +1487,8 @@ function setMetric(m) {
   document.querySelectorAll('.metric-btn').forEach(b => {
     b.classList.toggle('on', b.textContent.toLowerCase() === m);
   });
-  drawCharts();
+  if (progViewMode === 'group') drawGroupCharts();
+  else drawCharts();
 }
 
 function getExData(name) {
@@ -1177,12 +1519,8 @@ const COPT = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: '#1e1e24',
-      borderColor: '#383848',
-      borderWidth: 1,
-      titleColor: '#eeeef0',
-      bodyColor: '#818cf8',
-      padding: 10
+      backgroundColor: '#1e1e24', borderColor: '#383848', borderWidth: 1,
+      titleColor: '#eeeef0', bodyColor: '#818cf8', padding: 10
     }
   },
   scales: {
@@ -1191,11 +1529,20 @@ const COPT = {
   }
 };
 
+const _charts = {};
+function destroyChart(id) {
+  if (_charts[id]) { try { _charts[id].destroy(); } catch(e){} delete _charts[id]; }
+}
+function makeChart(id, cfg) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  _charts[id] = new Chart(ctx, cfg);
+}
+
 function lineChart(id, labels, vals, color, unit) {
-  if (!vals.length) return;
+  if (!vals.length || !document.getElementById(id)) return;
   const peak = vals.lastIndexOf(Math.max(...vals));
-  const ptColors = vals.map((_, i) => i === peak ? '#f87171' : color);
-  const ptSizes  = vals.map((_, i) => i === peak ? 8 : 5);
   makeChart(id, {
     type: 'line',
     data: {
@@ -1204,35 +1551,32 @@ function lineChart(id, labels, vals, color, unit) {
         data: vals,
         borderColor: color,
         backgroundColor: color + '18',
-        pointBackgroundColor: ptColors,
+        pointBackgroundColor: vals.map((_,i) => i===peak ? '#f87171' : color),
         pointBorderColor: '#0d0d10',
         pointBorderWidth: 2,
-        pointRadius: ptSizes,
+        pointRadius: vals.map((_,i) => i===peak ? 9 : 5),
         pointHoverRadius: 9,
-        fill: true,
-        tension: 0.35,
-        borderWidth: 2.5
+        fill: true, tension: 0.35, borderWidth: 2.5
       }]
     },
     options: {
       ...COPT,
       plugins: {
         ...COPT.plugins,
-        tooltip: {
-          ...COPT.plugins.tooltip,
-          callbacks: { label: c => c.parsed.y + unit }
-        }
+        tooltip: { ...COPT.plugins.tooltip, callbacks: { label: c => c.parsed.y + unit } }
       }
     }
   });
 }
 
+// ── Single exercise view ──
 function drawCharts() {
   const sel = document.getElementById('prog-ex-sel');
   if (sel) progEx = sel.value;
 
-  const data = getExData(progEx);
+  const data   = getExData(progEx);
   const labels = data.map(d => d.label);
+  const color  = catColor(exCat(progEx));
 
   if (!data.length) {
     ['chart-main','chart-w','chart-r'].forEach(id => destroyChart(id));
@@ -1241,11 +1585,10 @@ function drawCharts() {
     return;
   }
 
-  // ── Main chart based on selected metric ──
   const metricCfg = {
-    weight: { key:'maxWeight', color:'#818cf8', title:'Max weight over time',       unit:' kg'      },
-    reps:   { key:'maxReps',   color:'#34d399', title:'Max reps over time',         unit:' reps'    },
-    volume: { key:'totalVol',  color:'#fbbf24', title:'Total volume per session',   unit:' kg vol'  }
+    weight: { key:'maxWeight', color, title:'Max weight over time',       unit:' kg'      },
+    reps:   { key:'maxReps',   color:'#34d399', title:'Max reps over time',  unit:' reps'    },
+    volume: { key:'totalVol',  color:'#fbbf24', title:'Total volume per session', unit:' kg vol' }
   };
   const mc   = metricCfg[progMetric];
   const vals = data.map(d => d[mc.key]);
@@ -1258,12 +1601,9 @@ function drawCharts() {
   if (pr)  pr.textContent  = `PR: ${peakVal}${mc.unit} on ${data[peakIdx].label}`;
 
   lineChart('chart-main', labels, vals, mc.color, mc.unit);
-
-  // ── Weight + Reps mini charts (always shown) ──
-  lineChart('chart-w', labels, data.map(d => d.maxWeight), '#818cf8', ' kg');
+  lineChart('chart-w', labels, data.map(d => d.maxWeight), color, ' kg');
   lineChart('chart-r', labels, data.map(d => d.maxReps),   '#34d399', ' reps');
 
-  // ── PR chips ──
   const prEl = document.getElementById('pr-chips');
   if (prEl) {
     const bestW = Math.max(...data.map(d => d.maxWeight));
@@ -1279,8 +1619,174 @@ function drawCharts() {
   }
 }
 
+// ── Group view: one mini chart per exercise in the category ──
+function drawGroupCharts() {
+  const container = document.getElementById('group-charts');
+  if (!container) return;
+
+  // Get all exercises in this category that have data
+  const allEx = [];
+  Object.values(DB).forEach(day => Object.keys(day).forEach(n => {
+    if (!allEx.includes(n)) allEx.push(n);
+  }));
+  const groupEx = allEx.filter(n => exCat(n) === progCat).sort();
+
+  if (!groupEx.length) {
+    container.innerHTML = '<div class="empty" style="padding:28px"><p>No exercises logged for this group yet.</p></div>';
+    const pr = document.getElementById('pr-chips');
+    if (pr) pr.innerHTML = '';
+    return;
+  }
+
+  const metricCfg = {
+    weight: { key:'maxWeight', unit:' kg',      label:'Max weight'     },
+    reps:   { key:'maxReps',   unit:' reps',    label:'Max reps'       },
+    volume: { key:'totalVol',  unit:' kg vol',  label:'Volume'         }
+  };
+  const mc    = metricCfg[progMetric];
+  const color = catColor(progCat);
+
+  // Build one chart card per exercise
+  container.innerHTML = groupEx.map(name =>
+    `<div class="chart-card" style="margin-bottom:14px;border-top:3px solid ${color}">
+      <div class="chart-title" style="color:${color}">${name} <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:6px">${mc.label}</span></div>
+      <div class="chart-wrap" style="height:180px"><canvas id="gchart-${name.replace(/[^a-z0-9]/gi,'_')}"></canvas></div>
+    </div>`
+  ).join('');
+
+  // Draw each chart
+  groupEx.forEach(name => {
+    const data   = getExData(name);
+    const labels = data.map(d => d.label);
+    const vals   = data.map(d => d[mc.key]);
+    if (!vals.length) return;
+    lineChart('gchart-' + name.replace(/[^a-z0-9]/gi,'_'), labels, vals, color, mc.unit);
+  });
+
+  // Group PR chips
+  const prEl = document.getElementById('pr-chips');
+  if (prEl) {
+    const chips = groupEx.map(name => {
+      const data = getExData(name);
+      if (!data.length) return '';
+      const bestW = Math.max(...data.map(d => d.maxWeight));
+      const bestR = Math.max(...data.map(d => d.maxReps));
+      return `<div class="pr-chip" style="border-color:${color}44;background:${color}11;color:${color}">
+        <strong>${name}</strong> — ${bestW}kg × ${bestR} reps
+      </div>`;
+    }).join('');
+    prEl.innerHTML = chips || '<span style="color:var(--muted);font-size:13px">No data yet.</span>';
+  }
+}
+
+
+
+// ─────────────────────────────────────────
+//  GROUPS TAB
+// ─────────────────────────────────────────
+function renderGroups() {
+  const el = document.getElementById('groups-content');
+
+  // exercises that exist in DB or exList
+  const allEx = [...new Set([...exList, ...Object.values(DB).flatMap(d => Object.keys(d))])].sort();
+
+  const groupCards = groups.length === 0
+    ? `<div class="empty" style="padding:32px 20px"><div class="empty-ico">🗂️</div><p>No groups yet.<br>Create one above to organise your exercises.</p></div>`
+    : groups.map(g => {
+        const color   = catColor(g);
+        const members = allEx.filter(e => exCat(e) === g);
+        const chips   = members.map(e => `
+          <span class="group-ex-chip" style="background:${color}15;color:${color};border-color:${color}40">
+            ${e}
+            <button onclick="removeExFromGroup('${esc(e)}')" title="Remove from group">×</button>
+          </span>`).join('');
+
+        // Exercises not yet in this group (for the assign dropdown)
+        const unassigned = allEx.filter(e => !exCat(e) || exCat(e) === g);
+
+        return `
+          <div class="group-card" style="border-top:3px solid ${color}">
+            <div class="group-card-head">
+              <div class="group-color-bar" style="background:${color}"></div>
+              <span class="group-name">${g}</span>
+              <span class="group-count">${members.length} exercises</span>
+              <button class="del-ex-btn" onclick="confirmDeleteGroup('${esc(g)}')">
+                <svg viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5v1M4 3.5l.667 8h4.666L10 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Delete group
+              </button>
+            </div>
+            <div class="group-ex-list">
+              ${chips || `<span style="color:var(--muted);font-size:13px;font-style:italic">No exercises assigned yet.</span>`}
+            </div>
+            <div class="group-add-row">
+              <select class="assign-sel" id="assign-sel-${esc(g)}">
+                <option value="">Add exercise to this group…</option>
+                ${allEx.filter(e => exCat(e) !== g).map(e =>
+                  `<option value="${esc(e)}">${e}${exCat(e) ? ' ('+exCat(e)+')' : ''}</option>`
+                ).join('')}
+              </select>
+              <button class="btn btn-accent btn-sm" onclick="addExToGroup('${esc(g)}')">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                Assign
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+
+  el.innerHTML = `
+    <div class="sec-label" style="margin-top:0">Create new group</div>
+    <div class="add-group-bar">
+      <input type="text" class="group-inp" id="new-group-inp" placeholder="Group name e.g. Chest, Boxing, Legs…" onkeydown="if(event.key==='Enter')createGroup()">
+      <button class="btn btn-accent" onclick="createGroup()">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Create group
+      </button>
+    </div>
+    ${groupCards}`;
+}
+
+function createGroup() {
+  const inp = document.getElementById('new-group-inp');
+  const name = inp.value.trim();
+  if (!name) { toast('Enter a group name', true); return; }
+  if (groups.includes(name)) { toast(`"${name}" already exists`, true); return; }
+  addGroup(name);
+  inp.value = '';
+  renderGroups();
+  renderLog(); // refresh pills
+  toast(`Group "${name}" created`);
+}
+
+function confirmDeleteGroup(name) {
+  if (!confirm(`Delete group "${name}"? Exercises won't be deleted, just ungrouped.`)) return;
+  deleteGroup(name);
+  if (logCatFilter === name) logCatFilter = 'All';
+  renderGroups();
+  renderLog();
+  toast(`Group "${name}" deleted`);
+}
+
+function addExToGroup(groupName) {
+  const sel = document.getElementById('assign-sel-' + esc(groupName));
+  if (!sel || !sel.value) { toast('Pick an exercise first', true); return; }
+  const exName = sel.value;
+  assignExToGroup(exName, groupName);
+  // make sure exercise is in exList
+  if (!exList.includes(exName)) { exList.unshift(exName); persist(); }
+  renderGroups();
+  renderLog();
+  toast(`"${exName}" → ${groupName}`);
+}
+
+function removeExFromGroup(exName) {
+  assignExToGroup(exName, '');
+  renderGroups();
+  renderLog();
+  toast(`"${exName}" removed from group`);
+}
+
 function switchTab(t) {
-  ['log','history','stats','progress'].forEach(id => {
+  ['log','history','stats','progress','groups'].forEach(id => {
     const tb = document.getElementById('tab-'+id);
     const pn = document.getElementById('pane-'+id);
     if (tb) tb.classList.toggle('on', id===t);
@@ -1289,6 +1795,7 @@ function switchTab(t) {
   if (t==='history')  renderHistory();
   if (t==='stats')    renderStats();
   if (t==='progress') renderProgress();
+  if (t==='groups')   renderGroups();
 }
 
 let toastTimer;
